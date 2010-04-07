@@ -14,6 +14,8 @@ COOKIE_PATH     = "/"
 COOKIE_LIFETIME = datetime.timedelta(days=7)
 
 _current_session = None
+def get_current_session():
+    return _current_session
 
 class SessionModel(db.Model):
     """Contains session data.  key_name is the session ID and pdump contains a

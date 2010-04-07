@@ -52,7 +52,8 @@ directory, and put the following in it:
 
 Example Usage
 -
-    from gaesessions import _current_session as session
+    from gaesessions import get_current_session
+    session = get_current_session()
     session.blah = 325
     session['another-var'] = some_model_instance
     del session.blah  # remove 'blah' from the session
