@@ -1,8 +1,8 @@
 GAE Sessions
 =
 
-NOTE: This software is pretty new.  If you discover a problem, please report it
-on the [gae-sessions issues page](http://github.com/dound/gae-sessions/issues).
+NOTE: This is beta software.  If you discover a problem, please report it on the
+[gae-sessions issues page](http://github.com/dound/gae-sessions/issues).
 
 
 Advantages:
@@ -21,6 +21,7 @@ Advantages:
      - Session values are accessed via a dictionary interface.
      - The session automatically initializes when you first assign a value.
        Until then, no cookies are set and no writes are done.
+     - Sessions expire automatically (based on a lifetime you can specify).
 
 
 Limitations:
@@ -52,15 +53,21 @@ directory, and put the following in it:
 
 Example Usage
 -
+
+There is a complete demo application in the 'demo' folder - just launch it with
+the development server (or upload it to GAE) and check it out.  Here's a few
+lines of example code too:
+
     from gaesessions import get_current_session
     session = get_current_session()
-    c = session.get('counter', 0)
-    session['counter'] = c + 1
-    session['blah'] = 325
-    del session.blah  # remove 'blah' from the session
-    # model instances and other complex objects can be stored too
+    if session.is_active():
+        c = session.get('counter', 0)
+        session['counter'] = c + 1
+        session['blah'] = 325
+        del session.blah  # remove 'blah' from the session
+        # model instances and other complex objects can be stored too
 
 
 _Author_: [David Underhill](http://www.dound.com)
 
-_Updated_: 2010-Apr-07
+_Updated_: 2010-Apr-07 (v0.02-beta)
