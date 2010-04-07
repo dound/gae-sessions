@@ -12,6 +12,8 @@ from google.appengine.ext import db
 COOKIE_PATH     = "/"
 COOKIE_LIFETIME = datetime.timedelta(days=7)
 
+MIN_DATE = datetime.datetime.fromtimestamp(0)
+
 _current_session = None
 def get_current_session():
     return _current_session
@@ -26,20 +28,19 @@ class Session(object):
     def __init__(self):
         self.sid = None
         self.cookie_header_data = None
+        self.data = {}
+        self.dirty = False  # has the session been changed?
+
         try:
             # check the cookie to see if a session has been started
             cookie = SimpleCookie(os.environ['HTTP_COOKIE'])
             self.__set_sid(cookie['sid'].value, False)
         except (CookieError, KeyError):
             # no session has been started for this user
-            self.data = {}
             return
 
-        # this flag indicates whether the session has been changed
-        self.dirty = False
-
         # eagerly fetch the data for the active session (we'll probably need it)
-        self.data = self.__retrieve_data()
+        self.__retrieve_data()
 
     @staticmethod
     def __make_sid():
@@ -81,21 +82,18 @@ class Session(object):
         the expiration date."""
         self.dirty = True
         self.data = {}
-        if expiration:
-            self.data['expiration'] = expiration
-        else:
-            self.data['expiration'] = datetime.datetime.now() + COOKIE_LIFETIME
-        self.__set_sid(self.__make_sid())
+        self.__set_sid(self.__make_sid(), True, expiration)
 
-    def terminate(self):
+    def terminate(self, clear_data=True):
         """Ends the session and cleans it up."""
-        self.__clear_data()
+        if clear_data:
+            self.__clear_data()
         self.sid = None
-        del self.dirty
-        del self.data
-        del self.cookie_header
+        self.data.clear()
+        self.dirty = False
+        self.__set_cookie('', MIN_DATE) # clear their cookie
 
-    def __set_sid(self, sid, make_cookie=True):
+    def __set_sid(self, sid, make_cookie=True, expiration=None):
         """Sets the session ID, deleting the old session if one existed.  The
         session's data will remain intact (only the sesssion ID changes)."""
         if self.sid:
@@ -105,21 +103,27 @@ class Session(object):
 
         # set the cookie if requested
         if not make_cookie: return
+        if expiration:
+            self.data['expiration'] = expiration
+        elif not self.data.has_key('expiration'):
+            self.data['expiration'] = datetime.datetime.now() + COOKIE_LIFETIME
+        self.__set_cookie(self.sid, self.data['expiration'])
+
+    def __set_cookie(self, sid, exp_time):
         cookie = SimpleCookie()
-        cookie["sid"] = self.sid
+        cookie["sid"] = sid
         cookie["sid"]["path"] = COOKIE_PATH
-        ex = self.data['expiration']
-        cookie["sid"]["expires"] = ex.strftime("%a, %d-%b-%Y %H:%M:%S PST")
+        cookie["sid"]["expires"] = exp_time.strftime("%a, %d-%b-%Y %H:%M:%S PST")
         self.cookie_header_data = cookie.output(header='')
 
     def __clear_data(self):
         """Deletes this session from memcache and the datastore."""
-        memcache.delete(self.key) # not really needed; it'll go away on its own
+        memcache.delete(self.sid) # not really needed; it'll go away on its own
         db.delete(self.db_key)
 
     def __retrieve_data(self):
-        """Returns the data associated with this session after retrieving it
-        from memcache or the datastore.  Assumes self.sid is set."""
+        """Sets the data associated with this session after retrieving it from
+        memcache or the datastore.  Assumes self.sid is set."""
         pdump = memcache.get(self.sid)
         if pdump is None:
             # memcache lost it, go to the datastore
@@ -128,8 +132,9 @@ class Session(object):
                 pdump = session_model_instance.pdump
             else:
                 logging.error("can't find session data in the datastore for sid=%s" % self.sid)
-                return {} # we lost it
-        return self.__decode_data(pdump)
+                self.terminate(False) # we lost it; just kill the session
+                return
+        self.data = self.__decode_data(pdump)
 
     def save(self, only_if_changed=True):
         """Saves the data associated with this session to memcache.  It also
