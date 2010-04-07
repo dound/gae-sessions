@@ -9,7 +9,6 @@ import os
 from google.appengine.api import memcache
 from google.appengine.ext import db
 
-COOKIE_DOMAIN   = "dound.appspot.com"
 COOKIE_PATH     = "/"
 COOKIE_LIFETIME = datetime.timedelta(days=7)
 
@@ -26,10 +25,12 @@ class Session(object):
     """Manages loading, user reading/writing, and saving of a session."""
     def __init__(self):
         self.sid = None
+        self.cookie_header_data = None
         try:
             # check the cookie to see if a session has been started
+            logging.info("GOT COOKIE DATA: %s" % os.environ['HTTP_COOKIE'])
             cookie = SimpleCookie(os.environ['HTTP_COOKIE'])
-            self.__set_sid(cookie['sid'])
+            self.__set_sid(cookie['sid'].value, False)
         except (CookieError, KeyError):
             # no session has been started for this user
             self.data = {}
@@ -79,13 +80,13 @@ class Session(object):
         expiration is not specified, then COOKIE_LIFETIME will used to determine
         the expiration date."""
         # make a random ID (random.randrange() is 10x faster but less secure?)
-        self.__set_sid(self.__make_sid())
         self.dirty = True
         self.data = {}
         if expiration:
             self.data['expiration'] = expiration
         else:
             self.data['expiration'] = datetime.datetime.now() + COOKIE_LIFETIME
+        self.__set_sid(self.__make_sid())
 
     def terminate(self):
         """Ends the session and cleans it up."""
@@ -95,7 +96,7 @@ class Session(object):
         del self.data
         del self.cookie_header
 
-    def __set_sid(self, sid):
+    def __set_sid(self, sid, make_cookie=True):
         """Sets the session ID, deleting the old session if one existed.  The
         session's data will remain intact (only the sesssion ID changes)."""
         if self.sid:
@@ -103,14 +104,14 @@ class Session(object):
         self.sid = sid
         self.db_key = db.Key.from_path(SessionModel.kind(), sid)
 
-        # there is an active sesssion, so set the cookie
+        # set the cookie if requested
+        if not make_cookie: return
         cookie = SimpleCookie()
-        cookie["session"] = self.sid
-        cookie["session"]["domain"] = COOKIE_DOMAIN
-        cookie["session"]["path"] = COOKIE_PATH
+        cookie["sid"] = self.sid
+        cookie["sid"]["path"] = COOKIE_PATH
         ex = self.data['expiration']
-        cookie["session"]["expires"] = ex.strftime("%a, %d-%b-%Y %H:%M:%S PST")
-        self.cookie_header = cookie.output()
+        cookie["sid"]["expires"] = ex.strftime("%a, %d-%b-%Y %H:%M:%S PST")
+        self.cookie_header_data = cookie.output(header='')
 
     def __clear_data(self):
         """Deletes this session from memcache and the datastore."""
@@ -156,9 +157,13 @@ class Session(object):
             memcache.set(self.sid, pdump)
 
     def get_cookie_out(self):
-        """Returns the cookie header to set (if any), otherwise None."""
-        if self.sid:
-            return self.cookie_header
+        """Returns the cookie data to set (if any), otherwise None.  This also
+        clears the cookie data (it only needs to be set once)."""
+        if self.cookie_header_data:
+            logging.warn('sid=%s'%self.sid)
+            ret = self.cookie_header_data
+            self.cookie_header_data = None
+            return ret
         else:
             return None
 
@@ -212,7 +217,7 @@ class SessionMiddleware(object):
         def my_start_response(status, headers, exc_info=None):
             cookie_out = _current_session.get_cookie_out()
             if cookie_out:
-                headers.append('Set-cookie', cookie_out)
+                headers.append(('Set-Cookie', cookie_out))
             _current_session.save() # store the session if it was changed
             return start_response(status, headers, exc_info)
 
