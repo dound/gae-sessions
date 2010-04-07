@@ -54,7 +54,7 @@ class Session(object):
     def __encode_data(d):
         """Returns a "pickled+" encoding of d.  d values of type db.Model are
         protobuf encoded before pickling to minimize CPU usage & data size."""
-        # seperate protobufs so we'll know how to decode (they are just strings)
+        # separate protobufs so we'll know how to decode (they are just strings)
         eP = {} # for models encoded as protobufs
         eO = {} # for everything else
         for k,v in d.iteritems():
@@ -97,7 +97,7 @@ class Session(object):
 
     def __set_sid(self, sid, make_cookie=True, expiration=None):
         """Sets the session ID, deleting the old session if one existed.  The
-        session's data will remain intact (only the sesssion ID changes)."""
+        session's data will remain intact (only the session ID changes)."""
         if self.sid:
             self.__clear_data()
         self.sid = sid

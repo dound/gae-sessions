@@ -1,8 +1,8 @@
 GAE Sessions
 =
 
-NOTE: This software is NOT ready for use.  I'm very much in the process of
-completing the initial implementation but it should be ready soon :).
+NOTE: This software is pretty new.  If you discover a problem, please report it
+on the [gae-sessions issues page](http://github.com/dound/gae-sessions/issues).
 
 
 Advantages:
