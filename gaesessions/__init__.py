@@ -44,6 +44,9 @@ class Session(object):
         # eagerly fetch the data for the active session (we'll probably need it)
         self.__retrieve_data()
 
+    def is_active(self):
+        return self.sid is not None
+
     @staticmethod
     def __make_sid():
         """Returns a new session ID."""
