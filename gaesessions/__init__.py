@@ -28,7 +28,6 @@ class Session(object):
         self.cookie_header_data = None
         try:
             # check the cookie to see if a session has been started
-            logging.info("GOT COOKIE DATA: %s" % os.environ['HTTP_COOKIE'])
             cookie = SimpleCookie(os.environ['HTTP_COOKIE'])
             self.__set_sid(cookie['sid'].value, False)
         except (CookieError, KeyError):
@@ -160,7 +159,6 @@ class Session(object):
         """Returns the cookie data to set (if any), otherwise None.  This also
         clears the cookie data (it only needs to be set once)."""
         if self.cookie_header_data:
-            logging.warn('sid=%s'%self.sid)
             ret = self.cookie_header_data
             self.cookie_header_data = None
             return ret
