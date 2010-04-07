@@ -163,6 +163,8 @@ class Session(object):
             return None
 
     # Users may interact with the session through a dictionary-like interface.
+    def get(self, key, default=None):
+        return self.data.get(key, default)
 
     def __getitem__(self, key):
         return self.data.__getitem__(key)
