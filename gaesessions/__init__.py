@@ -47,7 +47,7 @@ class Session(object):
         return hashlib.md5(os.urandom(16)).hexdigest()
 
     @staticmethod
-    def __encode_dict(d):
+    def __encode_data(d):
         """Returns a "pickled+" encoding of d.  d values of type db.Model are
         protobuf encoded before pickling to minimize CPU usage & data size."""
         # seperate protobufs so we'll know how to decode (they are just strings)
@@ -61,7 +61,7 @@ class Session(object):
         return pickle.dumps((eP,eO))
 
     @staticmethod
-    def __decode_dict(pdump):
+    def __decode_data(pdump):
         """Returns a data dictionary after decoding it from "pickled+" form."""
         eP, eO = pickle.loads(pdump)
         for k,v in eP.iteritems():
@@ -129,7 +129,7 @@ class Session(object):
             else:
                 logging.error("can't find session data in the datastore for sid=%s" % self.sid)
                 return {} # we lost it
-        return self.__decode_dict(pdump)
+        return self.__decode_data(pdump)
 
     def save(self, only_if_changed=True):
         """Saves the data associated with this session to memcache.  It also
