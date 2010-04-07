@@ -123,7 +123,8 @@ class Session(object):
 
     def __retrieve_data(self):
         """Sets the data associated with this session after retrieving it from
-        memcache or the datastore.  Assumes self.sid is set."""
+        memcache or the datastore.  Assumes self.sid is set.  Checks for session
+        expiration after getting the data."""
         pdump = memcache.get(self.sid)
         if pdump is None:
             # memcache lost it, go to the datastore
@@ -135,6 +136,9 @@ class Session(object):
                 self.terminate(False) # we lost it; just kill the session
                 return
         self.data = self.__decode_data(pdump)
+        # check for expiration and terminate the session if it has expired
+        if datetime.datetime.now() > self.data.get('expiration', MIN_DATE):
+            self.terminate()
 
     def save(self, only_if_changed=True):
         """Saves the data associated with this session to memcache.  It also
