@@ -18,7 +18,7 @@ Advantages:
        and only once per request (when the response is being sent).
  * __Simple to Use__
      - Easily installed as WSGI Middleware.
-     - You may access session values via a dictionary interface.
+     - Session values are accessed via a dictionary interface.
      - The session automatically initializes when you first assign a value.
        Until then, no cookies are set and no writes are done.
 
@@ -37,7 +37,7 @@ After downloading and unpacking gae-sessions, copy the 'gaesessions' folder into
 your app's root directory.
 
 gae-sessions includes WSGI middleware to make it easy to integrate into your app
-- you just need to add in the middleware.  If you're using App Engine's built in
+- you just need to add in the middleware.  If you're using App Engine's built-in
 webapp framework, or any other framework that calls the
 [run_wsgi_app](http://code.google.com/appengine/docs/python/tools/webapp/utilmodule.html)
 function, you can use App Engine's configuration framework to install
@@ -54,9 +54,11 @@ Example Usage
 -
     from gaesessions import get_current_session
     session = get_current_session()
-    session.get('blah', 325)
-    session['another-var'] = some_model_instance
+    c = session.get('counter', 0)
+    session['counter'] = c + 1
+    session['blah'] = 325
     del session.blah  # remove 'blah' from the session
+    # model instances and other complex objects can be stored too
 
 
 _Author_: [David Underhill](http://www.dound.com)
