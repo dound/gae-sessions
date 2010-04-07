@@ -9,9 +9,11 @@ import os
 from google.appengine.api import memcache
 from google.appengine.ext import db
 
+# Configurable cookie options
 COOKIE_PATH     = "/"
 COOKIE_LIFETIME = datetime.timedelta(days=7)
 
+# a date in the past used to expire cookies on the client's side
 MIN_DATE = datetime.datetime.fromtimestamp(0)
 
 _current_session = None
