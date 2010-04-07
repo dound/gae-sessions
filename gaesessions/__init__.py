@@ -120,8 +120,9 @@ class Session(object):
 
     def __clear_data(self):
         """Deletes this session from memcache and the datastore."""
-        memcache.delete(self.sid) # not really needed; it'll go away on its own
-        db.delete(self.db_key)
+        if self.sid:
+            memcache.delete(self.sid) # not really needed; it'll go away on its own
+            db.delete(self.db_key)
 
     def __retrieve_data(self):
         """Sets the data associated with this session after retrieving it from
