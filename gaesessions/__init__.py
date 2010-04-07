@@ -162,15 +162,7 @@ class Session(object):
         else:
             return None
 
-    # Users may interact with the session like dictionary or an object.
-    def __getattr__(self, name):
-        return self.__getitem__(name)
-
-    def __setattr__(self, name, value):
-        self.__setitem__(name, value)
-
-    def __delattr__(self, name):
-        self.__delitem__(self, name)
+    # Users may interact with the session through a dictionary-like interface.
 
     def __getitem__(self, key):
         return self.data.__getitem__(key)

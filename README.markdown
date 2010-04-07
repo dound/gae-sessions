@@ -18,7 +18,7 @@ Advantages:
        and only once per request (when the response is being sent).
  * __Simple to Use__
      - Easily installed as WSGI Middleware.
-     - You may access session values as attributes or via a dictionary interface.
+     - You may access session values via a dictionary interface.
      - The session automatically initializes when you first assign a value.
        Until then, no cookies are set and no writes are done.
 
@@ -54,7 +54,7 @@ Example Usage
 -
     from gaesessions import get_current_session
     session = get_current_session()
-    session.blah = 325
+    session.get('blah', 325)
     session['another-var'] = some_model_instance
     del session.blah  # remove 'blah' from the session
 
