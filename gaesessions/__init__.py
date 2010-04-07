@@ -44,6 +44,7 @@ class Session(object):
     @staticmethod
     def __make_sid():
         """Returns a new session ID."""
+        # make a random ID (random.randrange() is 10x faster but less secure?)
         return hashlib.md5(os.urandom(16)).hexdigest()
 
     @staticmethod
@@ -78,7 +79,6 @@ class Session(object):
         """Starts a new session.  expiration specifies when it will expire.  If
         expiration is not specified, then COOKIE_LIFETIME will used to determine
         the expiration date."""
-        # make a random ID (random.randrange() is 10x faster but less secure?)
         self.dirty = True
         self.data = {}
         if expiration:
