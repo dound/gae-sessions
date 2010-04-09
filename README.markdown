@@ -68,6 +68,8 @@ lines of example code too:
         # model instances and other complex objects can be stored too
 
 
-_Author_: [David Underhill](http://www.dound.com)
+_Author_: [David Underhill](http://www.dound.com)  
+_Updated_: 2010-Apr-07 (v0.02-beta)  
+_License_: Apache License Version 2.0
 
-_Updated_: 2010-Apr-07 (v0.02-beta)
+For more information, please visit the [gae-sessions webpage](http://github.com/dound/gae-sessions/).
