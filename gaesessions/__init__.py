@@ -125,7 +125,10 @@ class Session(object):
         """Deletes this session from memcache and the datastore."""
         if self.sid:
             memcache.delete(self.sid) # not really needed; it'll go away on its own
-            db.delete(self.db_key)
+            try:
+                db.delete(self.db_key)
+            except:
+                logging.warning("unable to cleanup session from the datastore for sid=%s" % self.sid)
 
     def __retrieve_data(self):
         """Sets the data associated with this session after retrieving it from

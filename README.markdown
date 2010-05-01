@@ -69,7 +69,7 @@ lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-Apr-07 (v0.02-beta)  
+_Updated_: 2010-May-01 (v0.03-beta)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://github.com/dound/gae-sessions/).
