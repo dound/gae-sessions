@@ -1,0 +1,22 @@
+<html>
+<head><title>gae-sessions demo with Google logins</title></head>
+<body>
+<div style="width:800px; margin: 0 auto;">
+<h1><a href="http://github.com/dound/gae-sessions">gae-sessions</a> demo with Google logins</h1>
+
+<p><a href="/">Click here</a> if you'd like to go back to the main page</a> -
+{% if myuser %}
+  thanks for trying out this demo {{ myuser.user.nickname }}.
+{% else %}
+  you can login there!
+{% endif %}
+</p>
+
+<hr/>
+<div style="text-align:center">
+  <a href="http://github.com/dound/gae-sessions">gae-sessions</a>
+  by <a href="http://www.dound.com">David Underhill</a>
+</div>
+</div>
+</body>
+</html>
