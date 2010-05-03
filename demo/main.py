@@ -13,7 +13,12 @@ from gaesessions import get_current_session
 # configure the RPX iframe to work with the server were on (dev or real)
 ON_LOCALHOST = ('Development' == os.environ['SERVER_SOFTWARE'][:11])
 if ON_LOCALHOST:
-    BASE_URL = 'localhost'
+    import logging
+    logging.warn( type(os.environ['SERVER_PORT']))
+    if os.environ['SERVER_PORT'] == '80':
+        BASE_URL = 'localhost'
+    else:
+        BASE_URL = 'localhost:%s' % os.environ['SERVER_PORT']
 else:
     BASE_URL = 'your-app-id.appspot.com'
 LOGIN_IFRAME = '<iframe src="http://gae-sesssions-demo.rpxnow.com/openid/embed?token_url=http%3A%2F%2F' + BASE_URL + '%2Frpx_response" scrolling="no" frameBorder="no" allowtransparency="true" style="width:400px;height:240px"></iframe>'
