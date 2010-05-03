@@ -55,8 +55,10 @@ Example Usage
 -
 
 There is a complete demo application in the 'demo' folder - just launch it with
-the development server (or upload it to GAE) and check it out.  Here's a few
-lines of example code too:
+the development server (or upload it to GAE) and check it out.  This demo uses
+OpenID via [RPX](http://www.rpxnow.com) for user authentication.  There's
+another demo in the 'demo-with-google-logins' folder which uses Google Accounts
+for authentication Here's a few lines of example code too:
 
     from gaesessions import get_current_session
     session = get_current_session()
