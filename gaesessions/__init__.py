@@ -164,7 +164,7 @@ class Session(object):
         mc_ok = memcache.set(self.sid, pdump)
 
         # persist the session to the datastore
-        if self.dirty == Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
+        if self.dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
             return
         try:
             SessionModel(key_name=self.sid, pdump=pdump).put()
