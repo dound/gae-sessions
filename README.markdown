@@ -52,6 +52,12 @@ directory, and put the following in it:
         app = SessionMiddleware(app)
         return app
 
+You will also want to create a cronjob to periodically remove expired sessions
+from the datastore.  You can find the [example
+cronjob](http://github.com/dound/gae-sessions/tree/master/demo/cron.yaml) and
+the [cleanup handler](http://github.com/dound/gae-sessions/tree/master/demo/cleanup_sessions.py)
+it calls in the [demo].
+
 
 Example Usage
 -
@@ -82,7 +88,7 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-06 (v0.04-beta)  
+_Updated_: 2010-May-06 (v0.05-beta)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://github.com/dound/gae-sessions/).
