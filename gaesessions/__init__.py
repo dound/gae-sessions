@@ -26,6 +26,8 @@ class SessionModel(db.Model):
     pdump = db.BlobProperty()
 
 class Session(object):
+    DIRTY_BUT_DONT_PERSIST_TO_DB = 1
+
     """Manages loading, user reading/writing, and saving of a session."""
     def __init__(self):
         self.sid = None
@@ -162,6 +164,8 @@ class Session(object):
         mc_ok = memcache.set(self.sid, pdump)
 
         # persist the session to the datastore
+        if self.dirty == Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
+            return
         try:
             SessionModel(key_name=self.sid, pdump=pdump).put()
         except db.TransactionFailedError:
@@ -193,6 +197,20 @@ class Session(object):
     def pop(self, key, default=None):
         self.dirty = True
         return self.data.pop(key, default)
+
+    def pop_quick(self, key, default=None):
+        if self.dirty is False:
+            self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
+        return self.data.pop(key, default)
+
+    def set_quick(self, key, value):
+        """Set a value named key on this session like normal, except don't
+        bother persisting the value all the way to the datastore (until another
+        action necessitates the write)."""
+        dirty = self.dirty
+        self[key] = value
+        if dirty is False:
+            self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
 
     def __getitem__(self, key):
         return self.data.__getitem__(key)

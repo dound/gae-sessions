@@ -9,13 +9,15 @@ Advantages:
 -
  * __Lightweight__: One short file and references to a handful of standard libs.
  * __High Availability__ is ensured by persisting all changes to the datastore.
+     - If you don't need this, you can use <code>set\_quick()</code> and
+       <code>pop\_quick()</code> and data will only be changed in memcache.
  * __Fast and Efficient__
      - Uses memcache to minimize read times.
      - Minimizes gets() and puts() by compactly storing all values in one field.
      - Automatically converts db.Model instances to protobufs for more
        efficient storage and CPU usage.
-     - Frequency of writes is minimized by only writing if there is a change,
-       and only once per request (when the response is being sent).
+     - Frequency of writes is minimized by *only writing if there is a change*,
+       and *only once per request* (when the response is being sent).
  * __Simple to Use__
      - Easily installed as WSGI Middleware.
      - Session values are accessed via a dictionary interface.
@@ -69,9 +71,18 @@ for authentication Here's a few lines of example code too:
         del session.blah  # remove 'blah' from the session
         # model instances and other complex objects can be stored too
 
+        # If you don't care if a particular change to the session is persisted
+        # to the datastore, then you can use the "quick" methods.  They will
+        # only cause the session to be stored to memcache.  Of course if you mix
+        # regular and quick methods, then everything will be persisted to the
+        # datastore (and memcache) at the end of the request like usual.
+        session.set_quick('x', 9)
+        x = session.get('x')
+        x = session.pop_quick('x')
+
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-01 (v0.03-beta)  
+_Updated_: 2010-May-06 (v0.04-beta)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://github.com/dound/gae-sessions/).
