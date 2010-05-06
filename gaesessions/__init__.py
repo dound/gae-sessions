@@ -53,7 +53,9 @@ class Session(object):
     def __make_sid():
         """Returns a new session ID."""
         # make a random ID (random.randrange() is 10x faster but less secure?)
-        return hashlib.md5(os.urandom(16)).hexdigest()
+        expire_dt = datetime.datetime.now() + COOKIE_LIFETIME
+        expire_ts = int(time.mktime((expire_dt).timetuple()))
+        return str(expire_ts) + '_' + hashlib.md5(os.urandom(16)).hexdigest()
 
     @staticmethod
     def __encode_data(d):
