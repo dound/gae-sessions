@@ -190,6 +190,10 @@ class Session(object):
     def has_key(self, key):
         return self.data.has_key(key)
 
+    def pop(self, key, default=None):
+        self.dirty = True
+        return self.data.pop(key, default)
+
     def __getitem__(self, key):
         return self.data.__getitem__(key)
 
