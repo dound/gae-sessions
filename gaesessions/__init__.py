@@ -27,22 +27,28 @@ class SessionModel(db.Model):
     pdump = db.BlobProperty()
 
 class Session(object):
+    """Manages loading, user reading/writing, and saving of a session."""
     DIRTY_BUT_DONT_PERSIST_TO_DB = 1
 
-    """Manages loading, user reading/writing, and saving of a session."""
-    def __init__(self):
+    def __init__(self, sid=None):
+        """If sid is set, then the session for that sid (if any) is loaded.
+        Otherwise, sid will be loaded from the HTTP_COOKIE (if any).
+        """
         self.sid = None
         self.cookie_header_data = None
         self.data = {}
         self.dirty = False  # has the session been changed?
 
-        try:
-            # check the cookie to see if a session has been started
-            cookie = SimpleCookie(os.environ['HTTP_COOKIE'])
-            self.__set_sid(cookie['sid'].value, False)
-        except (CookieError, KeyError):
-            # no session has been started for this user
-            return
+        if sid:
+            self.__set_sid(sid, False)
+        else:
+            try:
+                # check the cookie to see if a session has been started
+                cookie = SimpleCookie(os.environ['HTTP_COOKIE'])
+                self.__set_sid(cookie['sid'].value, False)
+            except (CookieError, KeyError):
+                # no session has been started for this user
+                return
 
         # eagerly fetch the data for the active session (we'll probably need it)
         self.__retrieve_data()
