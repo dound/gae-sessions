@@ -61,7 +61,8 @@ class Session(object):
         """Fetch the session data if we haven't retrieved it yet."""
         if not self.data_loaded:
             self.data_loaded = True
-            self.__retrieve_data()
+            if self.sid:
+                self.__retrieve_data()
 
     def get_expiration(self):
         """Returns the timestamp at which this session will expire (extracted
