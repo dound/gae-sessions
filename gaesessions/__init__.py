@@ -63,11 +63,20 @@ class Session(object):
             self.data_loaded = True
             self.__retrieve_data()
 
+    def get_expiration(self):
+        """Returns the timestamp at which this session will expire (extracted
+        from the session ID)."""
+        try:
+            return int(self.sid.split('_')[0])
+        except:
+            return 0
+
     @staticmethod
-    def __make_sid():
+    def __make_sid(expire_dt=None):
         """Returns a new session ID."""
         # make a random ID (random.randrange() is 10x faster but less secure?)
-        expire_dt = datetime.datetime.now() + COOKIE_LIFETIME
+        if not expire_dt:
+            expire_dt = datetime.datetime.now() + COOKIE_LIFETIME
         expire_ts = int(time.mktime((expire_dt).timetuple()))
         return str(expire_ts) + '_' + hashlib.md5(os.urandom(16)).hexdigest()
 
@@ -93,10 +102,10 @@ class Session(object):
             eO[k] = db.model_from_protobuf(v)
         return eO
 
-    def user_is_now_logged_in(self):
+    def user_is_now_logged_in(self, expiration=None):
         """Assigns the session a new session ID (data carries over).  This helps
         nullify session fixation attacks."""
-        self.__set_sid(self.__make_sid())
+        self.__set_sid(self.__make_sid(expiration))
         self.dirty = True
         self.ensure_data_loaded()   # dirty => data will be written, so make sure we've loaded it
 
@@ -106,7 +115,7 @@ class Session(object):
         the expiration date."""
         self.dirty = True
         self.data = {}
-        self.__set_sid(self.__make_sid(), True, expiration)
+        self.__set_sid(self.__make_sid(expiration), True)
 
     def terminate(self, clear_data=True):
         """Ends the session and cleans it up."""
@@ -117,7 +126,7 @@ class Session(object):
         self.dirty = False
         self.__set_cookie('', MIN_DATE) # clear their cookie
 
-    def __set_sid(self, sid, make_cookie=True, expiration=None):
+    def __set_sid(self, sid, make_cookie=True):
         """Sets the session ID, deleting the old session if one existed.  The
         session's data will remain intact (only the session ID changes)."""
         if self.sid:
@@ -126,12 +135,9 @@ class Session(object):
         self.db_key = db.Key.from_path(SessionModel.kind(), sid)
 
         # set the cookie if requested
-        if not make_cookie: return
-        if expiration:
-            self.data['expiration'] = expiration
-        elif not self.data.has_key('expiration'):
-            self.data['expiration'] = datetime.datetime.now() + COOKIE_LIFETIME
-        self.__set_cookie(self.sid, self.data['expiration'])
+        if make_cookie:
+            expiration = datetime.datetime.fromtimestamp(self.get_expiration())
+            self.__set_cookie(self.sid, expiration)
 
     def __set_cookie(self, sid, exp_time):
         cookie = SimpleCookie()
@@ -165,7 +171,7 @@ class Session(object):
                 return
         self.data = self.__decode_data(pdump)
         # check for expiration and terminate the session if it has expired
-        if datetime.datetime.now() > self.data.get('expiration', MIN_DATE):
+        if time.time() > self.get_expiration():
             self.terminate()
 
     def save(self, only_if_changed=True):
@@ -206,11 +212,8 @@ class Session(object):
 
     # Users may interact with the session through a dictionary-like interface.
     def clear(self):
-        self.ensure_data_loaded()
-        expiration = self.data.get('expiration', None)
-        if expiration:
+        if self.sid:
             self.data.clear()
-            self.data.__setitem__('expiration', expiration)
             self.dirty = True
 
     def get(self, key, default=None):
@@ -257,11 +260,8 @@ class Session(object):
 
     def __delitem__(self, key):
         self.ensure_data_loaded()
-        if key == 'expiration':
-            raise KeyError("expiration may not be removed")
-        else:
-            self.data.__delitem__(key)
-            self.dirty = True
+        self.data.__delitem__(key)
+        self.dirty = True
 
     def __iter__(self):
         """Returns an iterator over the keys (names) of the stored values."""
