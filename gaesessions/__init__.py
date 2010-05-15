@@ -38,6 +38,7 @@ class Session(object):
         self.cookie_header_data = None
         self.data = {}
         self.dirty = False  # has the session been changed?
+        self.data_loaded = False
 
         if sid:
             self.__set_sid(sid, False)
@@ -53,11 +54,14 @@ class Session(object):
                 # no session has been started for this user
                 return
 
-        # eagerly fetch the data for the active session (we'll probably need it)
-        self.__retrieve_data()
-
     def is_active(self):
         return self.sid is not None
+
+    def ensure_data_loaded(self):
+        """Fetch the session data if we haven't retrieved it yet."""
+        if not self.data_loaded:
+            self.data_loaded = True
+            self.__retrieve_data()
 
     @staticmethod
     def __make_sid():
@@ -94,6 +98,7 @@ class Session(object):
         nullify session fixation attacks."""
         self.__set_sid(self.__make_sid())
         self.dirty = True
+        self.ensure_data_loaded()   # dirty => data will be written, so make sure we've loaded it
 
     def start(self, expiration=None):
         """Starts a new session.  expiration specifies when it will expire.  If
@@ -201,6 +206,7 @@ class Session(object):
 
     # Users may interact with the session through a dictionary-like interface.
     def clear(self):
+        self.ensure_data_loaded()
         expiration = self.data.get('expiration', None)
         if expiration:
             self.data.clear()
@@ -208,16 +214,20 @@ class Session(object):
             self.dirty = True
 
     def get(self, key, default=None):
+        self.ensure_data_loaded()
         return self.data.get(key, default)
 
     def has_key(self, key):
+        self.ensure_data_loaded()
         return self.data.has_key(key)
 
     def pop(self, key, default=None):
+        self.ensure_data_loaded()
         self.dirty = True
         return self.data.pop(key, default)
 
     def pop_quick(self, key, default=None):
+        self.ensure_data_loaded()
         if self.dirty is False:
             self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
         return self.data.pop(key, default)
@@ -226,23 +236,27 @@ class Session(object):
         """Set a value named key on this session like normal, except don't
         bother persisting the value all the way to the datastore (until another
         action necessitates the write)."""
+        self.ensure_data_loaded()
         dirty = self.dirty
         self[key] = value
         if dirty is False:
             self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
 
     def __getitem__(self, key):
+        self.ensure_data_loaded()
         return self.data.__getitem__(key)
 
     def __setitem__(self, key, value):
         """Set a value named key on this session.  This will start this session
         if it had not already been started."""
+        self.ensure_data_loaded()
         if not self.sid:
             self.start()
         self.data.__setitem__(key, value)
         self.dirty = True
 
     def __delitem__(self, key):
+        self.ensure_data_loaded()
         if key == 'expiration':
             raise KeyError("expiration may not be removed")
         else:
@@ -251,14 +265,17 @@ class Session(object):
 
     def __iter__(self):
         """Returns an iterator over the keys (names) of the stored values."""
+        self.ensure_data_loaded()
         return self.data.iterkeys()
 
     def __contains__(self, key):
+        self.ensure_data_loaded()
         return self.data.__contains__(key)
 
     def __str__(self):
         """Returns a string representation of the session."""
         if self.sid:
+            self.ensure_data_loaded()
             return "SID=%s %s" % (self.sid, self.data)
         else:
             return "uninitialized session"
