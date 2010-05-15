@@ -47,9 +47,8 @@ class Session(object):
                 # check the cookie to see if a session has been started
                 cookie = SimpleCookie(os.environ['HTTP_COOKIE'])
                 cookie_sid = cookie['sid'].value
-                if not cookie_sid:
-                    return
-                self.__set_sid(cookie_sid, False)
+                if cookie_sid:
+                    self.__set_sid(cookie_sid, False)
             except (CookieError, KeyError):
                 # no session has been started for this user
                 return
