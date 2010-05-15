@@ -200,6 +200,13 @@ class Session(object):
             return None
 
     # Users may interact with the session through a dictionary-like interface.
+    def clear(self):
+        expiration = self.data.get('expiration', None)
+        if expiration:
+            self.data.clear()
+            self.data.__setitem__('expiration', expiration)
+            self.dirty = True
+
     def get(self, key, default=None):
         return self.data.get(key, default)
 
