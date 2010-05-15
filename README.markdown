@@ -21,6 +21,8 @@ Advantages:
        efficient storage and CPU usage.
      - Frequency of writes is minimized by *only writing if there is a change*,
        and *only once per request* (when the response is being sent).
+     - Session data is lazily loaded - if you don't use the session for a
+       request, zero overhead is added.
  * __Simple to Use__
      - Easily installed as WSGI Middleware.
      - Session values are accessed via a dictionary interface.
@@ -91,7 +93,7 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-15 (v0.06-beta)  
+_Updated_: 2010-May-15 (v0.07-beta)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://github.com/dound/gae-sessions/).
