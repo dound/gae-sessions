@@ -12,6 +12,9 @@ Advantages:
      - If you don't need this, you can use <code>set\_quick()</code> and
        <code>pop\_quick()</code> and data will only be changed in memcache.
  * __Fast and Efficient__
+     - [__Orders of magnitude
+       faster__](http://wiki.github.com/dound/gae-sessions/comparison-with-alternative-libraries)
+       than other session libraries for app engine.
      - Uses memcache to minimize read times.
      - Minimizes gets() and puts() by compactly storing all values in one field.
      - Automatically converts db.Model instances to protobufs for more
@@ -88,7 +91,7 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-06 (v0.05-beta)  
+_Updated_: 2010-May-15 (v0.06-beta)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://github.com/dound/gae-sessions/).
