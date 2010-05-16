@@ -91,6 +91,10 @@ for authentication Here's a few lines of example code too:
         x = session.get('x')
         x = session.pop_quick('x')
 
+    # ...
+    # when the user logs in, it is recommended that you rotate the session ID (security)
+    session.user_is_now_logged_in()
+
 
 _Author_: [David Underhill](http://www.dound.com)  
 _Updated_: 2010-May-15 (v0.07-beta)  
