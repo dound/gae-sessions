@@ -198,7 +198,7 @@ class Session(object):
         mc_ok = memcache.set(self.sid, pdump)
 
         # persist the session to the datastore
-        if self.dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
+        if self.dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB or self.memcache_only:
             return
         try:
             SessionModel(key_name=self.sid, pdump=pdump).put()
@@ -258,11 +258,9 @@ class Session(object):
         persisted to memcache until another change necessitates a write to the
         datastore.  This will start a session if one is not already active."""
         self.ensure_data_loaded()
-        if not self.sid:
-            self.start()
         dirty = self.dirty
         self[key] = value
-        if dirty is False:
+        if dirty is False or dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
             self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
 
     def __getitem__(self, key):
