@@ -27,7 +27,7 @@ class SessionModel(db.Model):
     pdump = db.BlobProperty()
 
 class Session(object):
-    """Manages loading, user reading/writing, and saving of a session."""
+    """Manages loading, reading/writing key-value pairs, and saving of a session."""
     DIRTY_BUT_DONT_PERSIST_TO_DB = 1
 
     def __init__(self, sid=None):
@@ -54,18 +54,19 @@ class Session(object):
                 return
 
     def is_active(self):
+        """Returns True if this session is active (i.e., it has been assigned a
+        session ID and will be or has been persisted)."""
         return self.sid is not None
 
     def ensure_data_loaded(self):
-        """Fetch the session data if we haven't retrieved it yet."""
+        """Fetch the session data if it hasn't been retrieved it yet."""
         if not self.data_loaded:
             self.data_loaded = True
             if self.sid:
                 self.__retrieve_data()
 
     def get_expiration(self):
-        """Returns the timestamp at which this session will expire (extracted
-        from the session ID)."""
+        """Returns the timestamp at which this session will expire."""
         try:
             return int(self.sid.split('_')[0])
         except:
@@ -103,8 +104,9 @@ class Session(object):
         return eO
 
     def session_regenerate_id(self, expiration=None):
-        """Assigns the session a new session ID (data carries over).  This helps
-        nullify session fixation attacks."""
+        """Assigns the session a new session ID (data carries over).  This
+        should be called whenever a user authenticates to prevent session
+        fixation attacks."""
         if self.sid:
             self.ensure_data_loaded()  # ensure we have the data before we delete it
             self.__set_sid(self.__make_sid(expiration))
@@ -113,13 +115,17 @@ class Session(object):
     def start(self, expiration=None):
         """Starts a new session.  expiration specifies when it will expire.  If
         expiration is not specified, then COOKIE_LIFETIME will used to determine
-        the expiration date."""
+        the expiration date.
+
+        Normally this method does not need to be called directly - a session is
+        automatically started when the first value is added to the session.
+        """
         self.dirty = True
         self.data = {}
         self.__set_sid(self.__make_sid(expiration), True)
 
     def terminate(self, clear_data=True):
-        """Ends the session and cleans it up."""
+        """Deletes the session and its data, and expires the user's cookie."""
         if clear_data:
             self.__clear_data()
         self.sid = None
@@ -177,7 +183,11 @@ class Session(object):
 
     def save(self, only_if_changed=True):
         """Saves the data associated with this session to memcache.  It also
-        tries to persist it to the datastore."""
+        tries to persist it to the datastore.
+
+        Normally this method does not need to be called directly - a session is
+        automatically saved at the end of the request if any changes were made.
+        """
         if not self.sid:
             return # no session is active
         if only_if_changed and not self.dirty:
@@ -213,33 +223,40 @@ class Session(object):
 
     # Users may interact with the session through a dictionary-like interface.
     def clear(self):
+        """Removes all data from the session (but does not terminate it)."""
         if self.sid:
             self.data.clear()
             self.dirty = True
 
     def get(self, key, default=None):
+        """Retrieves a value from the session."""
         self.ensure_data_loaded()
         return self.data.get(key, default)
 
     def has_key(self, key):
+        """Returns True if key is set."""
         self.ensure_data_loaded()
         return self.data.has_key(key)
 
     def pop(self, key, default=None):
+        """Removes key and returns its value, or default if key is not present."""
         self.ensure_data_loaded()
         self.dirty = True
         return self.data.pop(key, default)
 
     def pop_quick(self, key, default=None):
+        """Removes key and returns its value, or default if key is not present.
+        The change will only be persisted to memcache until another change
+        necessitates a write to the datastore."""
         self.ensure_data_loaded()
         if self.dirty is False:
             self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
         return self.data.pop(key, default)
 
     def set_quick(self, key, value):
-        """Set a value named key on this session like normal, except don't
-        bother persisting the value all the way to the datastore (until another
-        action necessitates the write)."""
+        """Set a value named key on this session.  The change will only be
+        persisted to memcache until another change necessitates a write to the
+        datastore.  This will start a session if one is not already active."""
         self.ensure_data_loaded()
         if not self.sid:
             self.start()
@@ -249,12 +266,13 @@ class Session(object):
             self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
 
     def __getitem__(self, key):
+        """Returns the value associated with key on this session."""
         self.ensure_data_loaded()
         return self.data.__getitem__(key)
 
     def __setitem__(self, key, value):
-        """Set a value named key on this session.  This will start this session
-        if it had not already been started."""
+        """Set a value named key on this session.  This will start a session if
+        one is not already active."""
         self.ensure_data_loaded()
         if not self.sid:
             self.start()
@@ -262,6 +280,7 @@ class Session(object):
         self.dirty = True
 
     def __delitem__(self, key):
+        """Deletes the value associated with key on this session."""
         self.ensure_data_loaded()
         self.data.__delitem__(key)
         self.dirty = True
@@ -272,6 +291,7 @@ class Session(object):
         return self.data.iterkeys()
 
     def __contains__(self, key):
+        """Returns True if key is present on this session."""
         self.ensure_data_loaded()
         return self.data.__contains__(key)
 
