@@ -1,0 +1,34 @@
+gae-sessions documentation
+==========================
+
+.. toctree::
+   :maxdepth: 2
+
+Useful links
+------------
+
+ - Please see the README_ for information on how to install and use gae-sessions.
+ - `Release Notes`_
+ - Comparison_ to other sessions libraries.
+
+.. _README: http://github.com/dound/gae-sessions#readme
+.. _Comparison: http://wiki.github.com/dound/gae-sessions/comparison-with-alternative-libraries
+.. _Release Notes: http://wiki.github.com/dound/gae-sessions
+
+
+Detailed gaesessions module Documentation
+-----------------------------------------
+
+.. automodule:: gaesessions
+   :members: delete_expired_sessions, SessionMiddleware
+
+.. autoclass:: gaesessions.Session
+   :members: clear, ensure_data_loaded, get, get_expiration, has_key, is_active, pop, pop_quick, save, session_regenerate_id, set_quick, start, terminate, __contains__, __delitem__, __getitem__, __iter__, __setitem__
+
+.. autoclass:: gaesessions.SessionModel
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`search`
