@@ -34,7 +34,7 @@ Advantages:
 Limitations:
 -
   * Limited to 1MB of data in a session.  (to fit in a single memcache entry)
-  * No checks for User-Agent or IP consistency (yet).
+  * No checks for User-Agent or IP consistency.
   * I'm sure you'll have lots to add to this list :).
 
 
@@ -56,6 +56,13 @@ directory, and put the following in it:
     def webapp_add_wsgi_middleware(app):
         app = SessionMiddleware(app)
         return app
+
+The default session lifetime is 7 days.  You may configure how long a session
+lasts like this: `SessionMiddleware(app, lifetime=datetime.timedelta(hours=2))`.
+
+If you want ALL of your changes persisted ONLY to memcache, then create the
+middleware like this: `SessionMiddleware(app, memcache_only=True)`.  This will
+result in faster writes but your session data might be lost at any time!
 
 You will also want to create a cronjob to periodically remove expired sessions
 from the datastore.  You can find the [example
@@ -97,7 +104,7 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-17 (v0.08-beta)  
+_Updated_: 2010-May-17 (v0.9-beta)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://github.com/dound/gae-sessions/).

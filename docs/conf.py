@@ -9,7 +9,7 @@ source_suffix = '.rst'
 master_doc = 'docindex'
 project = u'gae-sessions'
 copyright = u'2010, David Underhill'
-release = version = '0.8'
+release = version = '0.9'
 exclude_trees = ['_build']
 
 pygments_style = 'sphinx'
