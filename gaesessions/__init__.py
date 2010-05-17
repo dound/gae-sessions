@@ -105,9 +105,9 @@ class Session(object):
     def user_is_now_logged_in(self, expiration=None):
         """Assigns the session a new session ID (data carries over).  This helps
         nullify session fixation attacks."""
+        self.ensure_data_loaded()  # ensure we have the data before we delete it
         self.__set_sid(self.__make_sid(expiration))
-        self.dirty = True
-        self.ensure_data_loaded()   # dirty => data will be written, so make sure we've loaded it
+        self.dirty = True  # ensure the data is written to the new session
 
     def start(self, expiration=None):
         """Starts a new session.  expiration specifies when it will expire.  If
