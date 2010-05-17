@@ -103,7 +103,7 @@ class Session(object):
             eO[k] = db.model_from_protobuf(v)
         return eO
 
-    def session_regenerate_id(self, expiration=None):
+    def regenerate_id(self, expiration=None):
         """Assigns the session a new session ID (data carries over).  This
         should be called whenever a user authenticates to prevent session
         fixation attacks."""

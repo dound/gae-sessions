@@ -23,7 +23,7 @@ Detailed gaesessions module Documentation
    :members: delete_expired_sessions, SessionMiddleware
 
 .. autoclass:: gaesessions.Session
-   :members: clear, ensure_data_loaded, get, get_expiration, has_key, is_active, pop, pop_quick, save, session_regenerate_id, set_quick, start, terminate, __contains__, __delitem__, __getitem__, __iter__, __setitem__
+   :members: clear, ensure_data_loaded, get, get_expiration, has_key, is_active, pop, pop_quick, regenerate_id, save, set_quick, start, terminate, __contains__, __delitem__, __getitem__, __iter__, __setitem__
 
 .. autoclass:: gaesessions.SessionModel
 
