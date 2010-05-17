@@ -11,8 +11,8 @@ from google.appengine.api import memcache
 from google.appengine.ext import db
 
 # Configurable cookie options
-COOKIE_PATH     = "/"
-COOKIE_LIFETIME = datetime.timedelta(days=7)
+COOKIE_PATH = "/"
+DEFAULT_LIFETIME = datetime.timedelta(days=7)
 
 # a date in the past used to expire cookies on the client's side
 MIN_DATE = datetime.datetime.fromtimestamp(0)
@@ -30,7 +30,7 @@ class Session(object):
     """Manages loading, reading/writing key-value pairs, and saving of a session."""
     DIRTY_BUT_DONT_PERSIST_TO_DB = 1
 
-    def __init__(self, sid=None):
+    def __init__(self, sid=None, lifetime=DEFAULT_LIFETIME, memcache_only=False):
         """If sid is set, then the session for that sid (if any) is loaded.
         Otherwise, sid will be loaded from the HTTP_COOKIE (if any).
         """
@@ -39,6 +39,8 @@ class Session(object):
         self.data = {}
         self.dirty = False  # has the session been changed?
         self.data_loaded = False
+        self.lifetime = lifetime
+        self.memcache_only = memcache_only
 
         if sid:
             self.__set_sid(sid, False)
@@ -72,12 +74,11 @@ class Session(object):
         except:
             return 0
 
-    @staticmethod
-    def __make_sid(expire_dt=None):
+    def __make_sid(self, expire_dt=None):
         """Returns a new session ID."""
         # make a random ID (random.randrange() is 10x faster but less secure?)
         if not expire_dt:
-            expire_dt = datetime.datetime.now() + COOKIE_LIFETIME
+            expire_dt = datetime.datetime.now() + self.lifetime
         expire_ts = int(time.mktime((expire_dt).timetuple()))
         return str(expire_ts) + '_' + hashlib.md5(os.urandom(16)).hexdigest()
 
@@ -114,8 +115,8 @@ class Session(object):
 
     def start(self, expiration=None):
         """Starts a new session.  expiration specifies when it will expire.  If
-        expiration is not specified, then COOKIE_LIFETIME will used to determine
-        the expiration date.
+        expiration is not specified, then self.lifetime will used to
+        determine the expiration date.
 
         Normally this method does not need to be called directly - a session is
         automatically started when the first value is added to the session.
@@ -169,6 +170,10 @@ class Session(object):
         pdump = memcache.get(self.sid)
         if pdump is None:
             # memcache lost it, go to the datastore
+            if self.memcache_only:
+                logging.info("can't find session data in memcache for sid=%s (using memcache only sessions)" % self.sid)
+                self.terminate(False) # we lost it; just kill the session
+                return
             session_model_instance = db.get(self.db_key)
             if session_model_instance:
                 pdump = session_model_instance.pdump
@@ -183,7 +188,7 @@ class Session(object):
 
     def save(self, only_if_changed=True):
         """Saves the data associated with this session to memcache.  It also
-        tries to persist it to the datastore.
+        tries to persist it to the datastore (if not a memcache_only session).
 
         Normally this method does not need to be called directly - a session is
         automatically saved at the end of the request if any changes were made.
@@ -303,13 +308,15 @@ class Session(object):
 
 class SessionMiddleware(object):
     """WSGI middleware that adds session support."""
-    def __init__(self, app):
+    def __init__(self, app, lifetime=DEFAULT_LIFETIME, memcache_only=False):
         self.app = app
+        self.lifetime = lifetime
+        self.memcache_only = memcache_only
 
     def __call__(self, environ, start_response):
         # initialize a session for the current user
         global _current_session
-        _current_session = Session()
+        _current_session = Session(lifetime=self.lifetime, memcache_only=self.memcache_only)
 
         # create a hook for us to insert a cookie into the response headers
         def my_start_response(status, headers, exc_info=None):
