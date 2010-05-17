@@ -93,7 +93,7 @@ for authentication Here's a few lines of example code too:
 
     # ...
     # when the user logs in, it is recommended that you rotate the session ID (security)
-    session.user_is_now_logged_in()
+    session.session_regenerate_id()
 
 
 _Author_: [David Underhill](http://www.dound.com)  

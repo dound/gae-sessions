@@ -102,7 +102,7 @@ class Session(object):
             eO[k] = db.model_from_protobuf(v)
         return eO
 
-    def user_is_now_logged_in(self, expiration=None):
+    def session_regenerate_id(self, expiration=None):
         """Assigns the session a new session ID (data carries over).  This helps
         nullify session fixation attacks."""
         self.ensure_data_loaded()  # ensure we have the data before we delete it
