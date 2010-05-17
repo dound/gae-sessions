@@ -241,6 +241,8 @@ class Session(object):
         bother persisting the value all the way to the datastore (until another
         action necessitates the write)."""
         self.ensure_data_loaded()
+        if not self.sid:
+            self.start()
         dirty = self.dirty
         self[key] = value
         if dirty is False:
