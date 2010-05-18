@@ -94,7 +94,7 @@ class Session(object):
                 eP[k] = db.model_to_protobuf(v)
             else:
                 eO[k] = v
-        return pickle.dumps((eP,eO))
+        return pickle.dumps((eP,eO), 2)
 
     @staticmethod
     def __decode_data(pdump):
