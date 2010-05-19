@@ -37,8 +37,8 @@ class Session(object):
         self.sid = None
         self.cookie_header_data = None
         self.data = {}
+        self.data = None # not yet loaded
         self.dirty = False  # has the session been changed?
-        self.data_loaded = False
         self.lifetime = lifetime
         self.no_datastore = no_datastore
 
@@ -62,10 +62,8 @@ class Session(object):
 
     def ensure_data_loaded(self):
         """Fetch the session data if it hasn't been retrieved it yet."""
-        if not self.data_loaded:
-            self.data_loaded = True
-            if self.sid:
-                self.__retrieve_data()
+        if self.data is None and self.sid:
+            self.__retrieve_data()
 
     def get_expiration(self):
         """Returns the timestamp at which this session will expire."""
@@ -130,7 +128,7 @@ class Session(object):
         if clear_data:
             self.__clear_data()
         self.sid = None
-        self.data.clear()
+        self.data = None
         self.dirty = False
         self.__set_cookie('', MIN_DATE) # clear their cookie
 
@@ -230,7 +228,7 @@ class Session(object):
     def clear(self):
         """Removes all data from the session (but does not terminate it)."""
         if self.sid:
-            self.data.clear()
+            self.data = {}
             self.dirty = True
 
     def get(self, key, default=None):
