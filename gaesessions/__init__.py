@@ -27,13 +27,14 @@ class SessionModel(db.Model):
     pdump = db.BlobProperty()
 
 class Session(object):
-    """Manages loading, reading/writing key-value pairs, and saving of a session."""
+    """Manages loading, reading/writing key-value pairs, and saving of a session.
+
+    ``sid`` - if set, then the session for that sid (if any) is loaded. Otherwise,
+    sid will be loaded from the HTTP_COOKIE (if any).
+    """
     DIRTY_BUT_DONT_PERSIST_TO_DB = 1
 
     def __init__(self, sid=None, lifetime=DEFAULT_LIFETIME, no_datastore=False):
-        """If sid is set, then the session for that sid (if any) is loaded.
-        Otherwise, sid will be loaded from the HTTP_COOKIE (if any).
-        """
         self.sid = None
         self.cookie_header_data = None
         self.data = None # not yet loaded
@@ -303,11 +304,24 @@ class Session(object):
             return "uninitialized session"
 
 class SessionMiddleware(object):
-    """WSGI middleware that adds session support."""
     def __init__(self, app, lifetime=DEFAULT_LIFETIME, no_datastore=False):
+    """WSGI middleware that adds session support.
+
+    ``lifetime`` - ``datetime.timedelta`` that specifies how long a session may last.
+
+    ``no_datastore`` - By default all writes also go to the datastore in case
+    memcache is lost.  Set to True to never use the datastore. This improves
+    write performance but sessions may be occassionally lost.
+
+    ``cookie_only_threshold`` - A size in bytes.  If session data is less than this
+    threshold, then session data is kept only in a secure cookie.  This avoids
+    memcache/datastore latency which is critical for small sessions.  Larger
+    sessions are kept in memcache+datastore instead.
+    """
         self.app = app
         self.lifetime = lifetime
         self.no_datastore = no_datastore
+        self.cookie_only_thresh = cookie_only_threshold
 
     def __call__(self, environ, start_response):
         # initialize a session for the current user
