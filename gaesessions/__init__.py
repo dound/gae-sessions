@@ -30,7 +30,7 @@ class Session(object):
     """Manages loading, reading/writing key-value pairs, and saving of a session."""
     DIRTY_BUT_DONT_PERSIST_TO_DB = 1
 
-    def __init__(self, sid=None, lifetime=DEFAULT_LIFETIME, memcache_only=False):
+    def __init__(self, sid=None, lifetime=DEFAULT_LIFETIME, no_datastore=False):
         """If sid is set, then the session for that sid (if any) is loaded.
         Otherwise, sid will be loaded from the HTTP_COOKIE (if any).
         """
@@ -40,7 +40,7 @@ class Session(object):
         self.dirty = False  # has the session been changed?
         self.data_loaded = False
         self.lifetime = lifetime
-        self.memcache_only = memcache_only
+        self.no_datastore = no_datastore
 
         if sid:
             self.__set_sid(sid, False)
@@ -170,7 +170,7 @@ class Session(object):
         pdump = memcache.get(self.sid)
         if pdump is None:
             # memcache lost it, go to the datastore
-            if self.memcache_only:
+            if self.no_datastore:
                 logging.info("can't find session data in memcache for sid=%s (using memcache only sessions)" % self.sid)
                 self.terminate(False) # we lost it; just kill the session
                 return
@@ -188,7 +188,7 @@ class Session(object):
 
     def save(self, only_if_changed=True):
         """Saves the data associated with this session to memcache.  It also
-        tries to persist it to the datastore (if not a memcache_only session).
+        tries to persist it to the datastore (if not a no_datastore session).
 
         Normally this method does not need to be called directly - a session is
         automatically saved at the end of the request if any changes were made.
@@ -203,7 +203,7 @@ class Session(object):
         mc_ok = memcache.set(self.sid, pdump)
 
         # persist the session to the datastore
-        if self.dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB or self.memcache_only:
+        if self.dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB or self.no_datastore:
             return
         try:
             SessionModel(key_name=self.sid, pdump=pdump).put()
@@ -308,15 +308,15 @@ class Session(object):
 
 class SessionMiddleware(object):
     """WSGI middleware that adds session support."""
-    def __init__(self, app, lifetime=DEFAULT_LIFETIME, memcache_only=False):
+    def __init__(self, app, lifetime=DEFAULT_LIFETIME, no_datastore=False):
         self.app = app
         self.lifetime = lifetime
-        self.memcache_only = memcache_only
+        self.no_datastore = no_datastore
 
     def __call__(self, environ, start_response):
         # initialize a session for the current user
         global _current_session
-        _current_session = Session(lifetime=self.lifetime, memcache_only=self.memcache_only)
+        _current_session = Session(lifetime=self.lifetime, no_datastore=self.no_datastore)
 
         # create a hook for us to insert a cookie into the response headers
         def my_start_response(status, headers, exc_info=None):

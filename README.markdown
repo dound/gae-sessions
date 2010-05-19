@@ -61,7 +61,7 @@ The default session lifetime is 7 days.  You may configure how long a session
 lasts like this: `SessionMiddleware(app, lifetime=datetime.timedelta(hours=2))`.
 
 If you want ALL of your changes persisted ONLY to memcache, then create the
-middleware like this: `SessionMiddleware(app, memcache_only=True)`.  This will
+middleware like this: `SessionMiddleware(app, no_datastore=True)`.  This will
 result in faster writes but your session data might be lost at any time!
 
 You will also want to create a cronjob to periodically remove expired sessions
