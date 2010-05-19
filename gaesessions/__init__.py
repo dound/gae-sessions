@@ -260,7 +260,6 @@ class Session(object):
         """Set a value named key on this session.  The change will only be
         persisted to memcache until another change necessitates a write to the
         datastore.  This will start a session if one is not already active."""
-        self.ensure_data_loaded()
         dirty = self.dirty
         self[key] = value
         if dirty is False or dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
