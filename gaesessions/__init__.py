@@ -36,7 +36,6 @@ class Session(object):
         """
         self.sid = None
         self.cookie_header_data = None
-        self.data = {}
         self.data = None # not yet loaded
         self.dirty = False  # has the session been changed?
         self.lifetime = lifetime
@@ -184,7 +183,7 @@ class Session(object):
         if time.time() > self.get_expiration():
             self.terminate()
 
-    def save(self, only_if_changed=True):
+    def save(self):
         """Saves the data associated with this session to memcache.  It also
         tries to persist it to the datastore (if not a no_datastore session).
 
@@ -193,7 +192,7 @@ class Session(object):
         """
         if not self.sid:
             return # no session is active
-        if only_if_changed and not self.dirty:
+        if not self.dirty:
             return # nothing has changed
 
         # do the pickling ourselves b/c we need it for the datastore anyway
