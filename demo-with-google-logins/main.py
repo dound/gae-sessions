@@ -25,8 +25,8 @@ class LoginHandler(webapp.RequestHandler):
     def get(self):
         user = users.get_current_user()
         if not user:
-            return redirect_with_message(self, 'Try logging in first.')
-        
+            return redirect_with_msg(self, 'Try logging in first.')
+
         # close any active session the user has since he is trying to login
         session = get_current_session()
         if session.is_active():
