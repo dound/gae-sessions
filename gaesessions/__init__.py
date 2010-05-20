@@ -216,7 +216,6 @@ class Session(object):
 
         # set the cookie if requested
         if make_cookie:
-            expiration = datetime.datetime.fromtimestamp(self.get_expiration())
             self.cookie_data = ''  # trigger the cookie to be sent
 
     def __clear_data(self):
