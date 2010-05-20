@@ -262,6 +262,8 @@ class Session(object):
             return # no session is active
         if not self.dirty:
             return # nothing has changed
+        dirty = self.dirty
+        self.dirty = False  # saving, so it won't be dirty anymore
 
         # do the pickling ourselves b/c we need it for the datastore anyway
         pdump = self.__encode_data(self.data)
@@ -275,7 +277,7 @@ class Session(object):
         memcache.set(self.sid, pdump)  # may fail if memcache is down
 
         # persist the session to the datastore
-        if self.dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB or self.no_datastore:
+        if dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB or self.no_datastore:
             return
         try:
             SessionModel(key_name=self.sid, pdump=pdump).put()
