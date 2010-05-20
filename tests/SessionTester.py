@@ -26,6 +26,7 @@ def session_method(f):
             output = e
         myself.outputs.append(output)
         logger.info('rpc enqueud: %s(%s, %s)' % (f.__name__,args[1:],kwargs))
+        return output
     return stub
 
 # matches any sid
