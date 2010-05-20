@@ -19,6 +19,7 @@ MIN_DATE = datetime.datetime.fromtimestamp(0)
 
 _current_session = None
 def get_current_session():
+    """Returns the session associated with the current request."""
     return _current_session
 
 class SessionModel(db.Model):
