@@ -150,6 +150,11 @@ class SessionTester(object):
         else:
             assert len(pdump)==0, "cookie specifies data but there shouldn't be any"
 
+    def noop(self):
+        """Starts and finishes a request which does nothing to the session."""
+        self.start_request()
+        self.finish_request_and_check()
+
     def flush_memcache(self):
         self.ok_if_in_mc_remotely = False
         if self.app_args['no_datastore'] and not self.data_should_be_in_cookie:
