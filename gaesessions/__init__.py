@@ -280,10 +280,8 @@ class Session(object):
             return
         try:
             SessionModel(key_name=self.sid, pdump=pdump).put()
-        except db.TransactionFailedError:
-            logging.warning("unable to persist session to datastore for sid=%s" % self.sid)
-        except db.CapabilityDisabledError:
-            pass # nothing we can do here
+        except Exception, e:
+            logging.warning("unable to persist session to datastore for sid=%s (%s)" % (self.sid,e))
 
         # retry the memcache set after the db op if the memcache set failed
         if not mc_ok:
