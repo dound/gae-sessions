@@ -105,7 +105,10 @@ class RPCHandler(webapp.RequestHandler):
         for fname,args,kwargs in rpcs:
             try:
                 f = getattr(session, fname)
-                output = f(*args, **kwargs)
+                try:
+                    output = f(*args, **kwargs)
+                except Exception, e:
+                    output = e
                 outputs.append(output)
                 logging.info('%s(%s, %s) => %s' % (f, args, kwargs, output))
             except Exception, e:

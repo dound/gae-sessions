@@ -13,7 +13,11 @@ def session_method(f):
         myself = args[0]
         rpc = (f.__name__, args[1:], kwargs)
         myself.rpcs.append(rpc)
-        myself.outputs.append(f(*args, **kwargs))
+        try:
+            output = f(*args, **kwargs)
+        except Exception, e:
+            output = e
+        myself.outputs.append(output)
         logging.info('rpc enqueud: %s(%s, %s)' % (f.__name__,args[1:],kwargs))
     return stub
 
