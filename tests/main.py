@@ -126,7 +126,9 @@ class TestingMiddleware(object):
                 outputs = environ['test_outputs']
                 resp = (outputs, make_ss(get_current_session()))
                 # add to the response ...
-                ret(b64encode(pickle.dumps(resp)))
+                content = b64encode(pickle.dumps(resp))
+                ret(content)
+                headers.append(('Content-Length', len(content)))
             return ret
 
         return self.app(environ, my_start_response)
