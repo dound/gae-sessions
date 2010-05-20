@@ -7,6 +7,10 @@ from webtest import TestApp
 from main import DEFAULT_COOKIE_KEY, make_application, SessionState
 from gaesessions import Session, SID_LEN, SIG_LEN
 
+logging.getLogger().name = 'seslib'  # root logger is only used by gae-sessions itself
+logger = logging.getLogger('TESTER')
+logger.setLevel(logging.DEBUG)
+
 def session_method(f):
     """Decorator which returns a function which calls the original function,
     records its output, and adds the function+args to the list of calls to be
@@ -21,7 +25,7 @@ def session_method(f):
         except Exception, e:
             output = e
         myself.outputs.append(output)
-        logging.info('rpc enqueud: %s(%s, %s)' % (f.__name__,args[1:],kwargs))
+        logger.info('rpc enqueud: %s(%s, %s)' % (f.__name__,args[1:],kwargs))
     return stub
 
 # matches any sid
@@ -87,6 +91,7 @@ class SessionTester(object):
         """
         if self.rpcs is None:
             raise RuntimeError("tried to finish a request before starting a request")
+        logger.info('Running request: rpcs=%s' % self.rpcs)
         resp = self.app.post('/', dict(rpcs=b64encode(pickle.dumps(self.rpcs)), api_statuses=b64encode(pickle.dumps(self.api_statuses))))
         assert resp.status[:3] == '200', 'did not get code 200 back: %s' % resp
         remote_outputs, remote_ss = pickle.loads(b64decode(resp.body))
@@ -135,6 +140,7 @@ class SessionTester(object):
             assert len(pdump)==0, "cookie specifies data but there shouldn't be any"
 
         self.api_statuses = self.outputs = self.rpcs = None
+        logger.info('Request completed')
 
     def flush_memcache(self):
         self.ok_if_in_mc_remotely = False

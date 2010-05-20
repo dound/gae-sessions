@@ -8,6 +8,9 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 
 from gaesessions import get_current_session, SessionMiddleware, SessionModel, delete_expired_sessions
 
+logger = logging.getLogger('SERVER')
+logger.setLevel(logging.DEBUG)
+
 class TestModel(db.Model):
     s = db.StringProperty()
     i = db.IntegerProperty()
@@ -79,16 +82,16 @@ class RPCHandler(webapp.RequestHandler):
         try:
             api_statuses = pickle.loads(b64decode(self.request.get('api_statuses')))
         except Exception, e:
-            logging.error('failed to unpickle api_statuses: %s' % e)
+            logger.error('failed to unpickle api_statuses: %s' % e)
             return self.error(500)
-        logging.info("api statuses: %s" % api_statuses)
+        logger.info("api statuses: %s" % api_statuses)
 
         try:
             rpcs = pickle.loads(b64decode(self.request.get('rpcs')))
         except Exception, e:
-            logging.error('failed to unpickle RPCs: %s' % e)
+            logger.error('failed to unpickle RPCs: %s' % e)
             return self.error(500)
-        logging.info("rpcs: %s" % rpcs)
+        logger.info("rpcs: %s" % rpcs)
 
         # TODO: apply the API statuses; remember to unapply before returning too
 
@@ -102,9 +105,9 @@ class RPCHandler(webapp.RequestHandler):
                 except Exception, e:
                     output = e
                 outputs.append(output)
-                logging.info('%s(%s, %s) => %s' % (f, args, kwargs, output))
+                logger.info('%s(%s, %s) => %s' % (f, args, kwargs, output))
             except Exception, e:
-                logging.error('failed to execute RPC: %s(session, *%s, **%s) - %s' % (f,args,kwargs,e))
+                logger.error('failed to execute RPC: %s(session, *%s, **%s) - %s' % (f,args,kwargs,e))
                 return self.error(500)
 
         resp = (outputs, make_ss(session))
