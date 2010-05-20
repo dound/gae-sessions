@@ -133,8 +133,7 @@ class SessionTester(object):
                 return # no session + no cookie_data = correct!
         keys = cookies.keys()
         keys.sort()
-        # webtest uses BaseCookie => values which are quoted strings are read literally instead of decoded so we have to decode them
-        aggr = ''.join(_unquote(cookies[k]) for k in keys)
+        aggr = ''.join(cookies[k] for k in keys)
         sig = aggr[:SIG_LEN]
         sid = aggr[SIG_LEN:SIG_LEN+SID_LEN]
         data = aggr[SIG_LEN+SID_LEN:]

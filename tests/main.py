@@ -120,6 +120,12 @@ class TestingMiddleware(object):
     def __init__(self, app):
         self.app = app
     def __call__(self, environ, start_response):
+        # On app engine and the dev server, os.environ also contains HTTP_COOKIE
+        # and gae-sessions relies on this so we copy it over for this test.
+        # (running with nose-gae and webtest this doesn't happen)
+        import os
+        os.environ['HTTP_COOKIE'] = environ.get('HTTP_COOKIE', '')
+
         def my_start_response(status, headers, exc_info=None):
             ret = start_response(status, headers, exc_info)
             if environ.has_key('test_outputs'):
