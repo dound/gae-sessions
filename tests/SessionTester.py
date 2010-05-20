@@ -75,7 +75,7 @@ class SessionTester(object):
             raise RuntimeError("tried to start a request before finishing the previous request")
 
         self.api_statuses = dict(mc_can_rd=mc_can_read, mc_can_wr=mc_can_write,
-                                 db_can_rd=db_can_read, db_can_wr=db_can_read)
+                                 db_can_rd=db_can_read, db_can_wr=db_can_write)
         self.rpcs = []
         self.outputs = []
 
@@ -118,8 +118,18 @@ class SessionTester(object):
         if self.check_sid_is_not:
             assert self.check_sid_is_not != remote_ss.sid, 'remote sid should not be %s' % remote_ss.sid
 
+        self.__check_cookies()
+        self.api_statuses = self.outputs = self.rpcs = None
+        logger.info('Request completed')
+
+    def __check_cookies(self):
         # check the cookie to make sure it specifies a SID and is signed properly
         cookies = self.app.cookies
+        if len(cookies)==0:
+            if self.ss.sid:
+                assert False, 'no cookie data received but we expected SID to be present'
+            else:
+                return # no session + no cookie_data = correct!
         keys = cookies.keys()
         keys.sort()
         # webtest uses BaseCookie => values which are quoted strings are read literally instead of decoded so we have to decode them
@@ -139,9 +149,6 @@ class SessionTester(object):
         else:
             assert len(pdump)==0, "cookie specifies data but there shouldn't be any"
 
-        self.api_statuses = self.outputs = self.rpcs = None
-        logger.info('Request completed')
-
     def flush_memcache(self):
         self.ok_if_in_mc_remotely = False
         if self.app_args['no_datastore'] and not self.data_should_be_in_cookie:
@@ -156,7 +163,7 @@ class SessionTester(object):
     # helpers for our mocks of Session methods
     def __check_expir(self, expiration):
         if expiration is not None:
-            self.check_expir = int(time.mktime((expire_dt).timetuple()))
+            self.check_expir = int(time.mktime((expiration).timetuple()))
 
     def __set_in_mc_db_to_true_if_ok(self):
         enc_len = len(Session._Session__encode_data(self.ss.data))
