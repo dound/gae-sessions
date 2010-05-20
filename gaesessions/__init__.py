@@ -1,7 +1,9 @@
 """A fast, lightweight, and secure session WSGI middleware for use with GAE."""
 from Cookie import CookieError, SimpleCookie
+from base64 import b64decode, b64encode
 import datetime
 import hashlib
+import hmac
 import logging
 import pickle
 import os
@@ -11,16 +13,28 @@ from google.appengine.api import memcache
 from google.appengine.ext import db
 
 # Configurable cookie options
+COOKIE_NAME_PREFIX = "DgU"  # identifies a cookie as being one used by gae-sessions (so you can set cookies too)
 COOKIE_PATH = "/"
+DEFAULT_COOKIE_ONLY_THRESH = 2**30  # TODO: determine a good value for this
 DEFAULT_LIFETIME = datetime.timedelta(days=7)
 
-# a date in the past used to expire cookies on the client's side
-MIN_DATE = datetime.datetime.fromtimestamp(0)
+# constants
+SID_LEN = 43  # timestamp (10 chars) + underscore + md5 (32 hex chars)
+SIG_LEN = 44  # base 64 encoded HMAC-SHA256
+MAX_COOKIE_LEN = 4096
+EXPIRE_COOKIE_FMT = ' %s=; expires=Wed, 31-Dec-1969 19:00:00 PST; Path=' + COOKIE_PATH
+COOKIE_FMT = ' ' + COOKIE_NAME_PREFIX + '%02d="%s"; expires=%s; Path=' + COOKIE_PATH
+COOKIE_DATE_FMT = '%a, %d-%b-%Y %H:%M:%S PST'
+COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + 29  # 29=date len
+MAX_DATA_PER_COOKIE = MAX_COOKIE_LEN - COOKIE_OVERHEAD
 
 _current_session = None
 def get_current_session():
     """Returns the session associated with the current request."""
     return _current_session
+
+def is_gaesessions_key(k):
+    return k.startswith(COOKIE_NAME_PREFIX)
 
 class SessionModel(db.Model):
     """Contains session data.  key_name is the session ID and pdump contains a
@@ -35,26 +49,82 @@ class Session(object):
     """
     DIRTY_BUT_DONT_PERSIST_TO_DB = 1
 
-    def __init__(self, sid=None, lifetime=DEFAULT_LIFETIME, no_datastore=False):
+    def __init__(self, sid=None, lifetime=DEFAULT_LIFETIME, no_datastore=False,
+                 cookie_only_threshold=DEFAULT_COOKIE_ONLY_THRESH, cookie_key=None):
         self.sid = None
-        self.cookie_header_data = None
-        self.data = None # not yet loaded
+        self.cookie_keys = []
+        self.cookie_data = None
+        self.data = {}
         self.dirty = False  # has the session been changed?
+
         self.lifetime = lifetime
         self.no_datastore = no_datastore
+        self.cookie_only_thresh = cookie_only_threshold
+        self.base_key = cookie_key
 
         if sid:
             self.__set_sid(sid, False)
         else:
-            try:
-                # check the cookie to see if a session has been started
-                cookie = SimpleCookie(os.environ['HTTP_COOKIE'])
-                cookie_sid = cookie['sid'].value
-                if cookie_sid:
-                    self.__set_sid(cookie_sid, False)
-            except (CookieError, KeyError):
-                # no session has been started for this user
-                return
+            self.__read_cookie()
+
+    @staticmethod
+    def __compute_hmac(base_key, sid, text):
+        """Computes the signature for text given base_key and sid."""
+        key = base_key + sid
+        return b64encode(hmac.new(key, text, hashlib.sha256).digest())
+
+    def __read_cookie(self):
+        """Reads the HTTP Cookie and loads the sid and data from it (if any)."""
+        try:
+            # check the cookie to see if a session has been started
+            cookie = SimpleCookie(os.environ['HTTP_COOKIE'])
+            self.cookie_keys = filter(is_gaesessions_key, cookie.keys())
+            if not self.cookie_keys:
+                return  # no session yet
+            self.cookie_keys.sort()
+            data = ''.join(cookie[k].value for k in self.cookie_keys)
+            i = SIG_LEN + SID_LEN
+            sig, sid, b64pdump = data[:SIG_LEN], data[SIG_LEN:i], data[i:]
+            pdump = b64decode(b64pdump)
+            actual_sig = Session.__compute_hmac(self.base_key, sid, pdump)
+            if sig == actual_sig:
+                self.sid = sid
+                # check for expiration and terminate the session if it has expired
+                if time.time() > self.get_expiration():
+                    return self.terminate()
+
+                if pdump:
+                    self.data = self.__decode_data(pdump)
+                else:
+                    self.data = None  # data is in memcache/db: load it on-demand
+            else:
+                logging.warn('cookie with invalid sig received from %s: %s' % (os.environ.get('REMOTE_ADDR'), pdump))
+        except (CookieError, KeyError, IndexError, TypeError):
+            # there is no cookie (i.e., no session) or the cookie is invalid
+            self.terminate(False)
+
+    def make_cookie_headers(self):
+        """Returns a list of cookie headers to send (if any)."""
+        # expire all cookies if the session has ended
+        if not self.sid:
+            return [EXPIRE_COOKIE_FMT % k for k in self.cookie_keys]
+
+        if self.cookie_data is None:
+            return []  # no cookie headers need to be sent
+
+        # build the cookie header(s): includes sig, sid, and cookie_data
+        sig = Session.__compute_hmac(self.base_key, self.sid, self.cookie_data)
+        cv = sig + self.sid + b64encode(self.cookie_data)
+        num_cookies = 1 + (len(cv) - 1) / MAX_DATA_PER_COOKIE
+        m = MAX_DATA_PER_COOKIE
+        ed = datetime.datetime.fromtimestamp(self.get_expiration()).strftime(COOKIE_DATE_FMT)
+        cookies = [COOKIE_FMT % (i, cv[i*m:i*m+m], ed) for i in xrange(num_cookies)]
+
+        # expire old cookies which aren't needed anymore
+        old_cookies = xrange(num_cookies+1, len(self.cookie_keys))
+        key = COOKIE_NAME_PREFIX + '%02d'
+        cookies_to_ax = [EXPIRE_COOKIE_FMT % (key % i) for i in old_cookies]
+        return cookies + cookies_to_ax
 
     def is_active(self):
         """Returns True if this session is active (i.e., it has been assigned a
@@ -129,9 +199,12 @@ class Session(object):
         if clear_data:
             self.__clear_data()
         self.sid = None
-        self.data = None
+        self.data = {}
         self.dirty = False
-        self.__set_cookie('', MIN_DATE) # clear their cookie
+        if self.cookie_keys:
+            self.cookie_data = ''  # trigger the cookies to expire
+        else:
+            self.cookie_data = None
 
     def __set_sid(self, sid, make_cookie=True):
         """Sets the session ID, deleting the old session if one existed.  The
@@ -144,14 +217,7 @@ class Session(object):
         # set the cookie if requested
         if make_cookie:
             expiration = datetime.datetime.fromtimestamp(self.get_expiration())
-            self.__set_cookie(self.sid, expiration)
-
-    def __set_cookie(self, sid, exp_time):
-        cookie = SimpleCookie()
-        cookie["sid"] = sid
-        cookie["sid"]["path"] = COOKIE_PATH
-        cookie["sid"]["expires"] = exp_time.strftime("%a, %d-%b-%Y %H:%M:%S PST")
-        self.cookie_header_data = cookie.output(header='')
+            self.cookie_data = ''  # trigger the cookie to be sent
 
     def __clear_data(self):
         """Deletes this session from memcache and the datastore."""
@@ -160,7 +226,7 @@ class Session(object):
             try:
                 db.delete(self.db_key)
             except:
-                logging.warning("unable to cleanup session from the datastore for sid=%s" % self.sid)
+                pass # either it wasn't in the db (maybe cookie/memcache-only) or db is down => cron will expire it
 
     def __retrieve_data(self):
         """Sets the data associated with this session after retrieving it from
@@ -181,13 +247,14 @@ class Session(object):
                 self.terminate(False) # we lost it; just kill the session
                 return
         self.data = self.__decode_data(pdump)
-        # check for expiration and terminate the session if it has expired
-        if time.time() > self.get_expiration():
-            self.terminate()
 
-    def save(self):
-        """Saves the data associated with this session to memcache.  It also
-        tries to persist it to the datastore (if not a no_datastore session).
+    def save(self, persist_even_if_using_cookie=False):
+        """Saves the data associated with this session.
+
+        If the data is small enough it will be sent back to the user in a cookie
+        instead of using memcache and the datastore.  If `persist_even_if_using_cookie`
+        evaluates to True, memcache and the datastore will also be used.  If the
+        no_datastore option is set, then the datastore will never be used.
 
         Normally this method does not need to be called directly - a session is
         automatically saved at the end of the request if any changes were made.
@@ -199,6 +266,13 @@ class Session(object):
 
         # do the pickling ourselves b/c we need it for the datastore anyway
         pdump = self.__encode_data(self.data)
+
+        # persist via cookies if it is reasonably small
+        if len(pdump)*4/3 <= self.cookie_only_thresh: # 4/3 b/c base64 is ~33% bigger
+            self.cookie_data = pdump
+            if not persist_even_if_using_cookie:
+                return
+
         mc_ok = memcache.set(self.sid, pdump)
 
         # persist the session to the datastore
@@ -214,16 +288,6 @@ class Session(object):
         # retry the memcache set after the db op if the memcache set failed
         if not mc_ok:
             memcache.set(self.sid, pdump)
-
-    def get_cookie_out(self):
-        """Returns the cookie data to set (if any), otherwise None.  This also
-        clears the cookie data (it only needs to be set once)."""
-        if self.cookie_header_data:
-            ret = self.cookie_header_data
-            self.cookie_header_data = None
-            return ret
-        else:
-            return None
 
     # Users may interact with the session through a dictionary-like interface.
     def clear(self):
@@ -305,10 +369,9 @@ class Session(object):
             return "uninitialized session"
 
 class SessionMiddleware(object):
-    def __init__(self, app, lifetime=DEFAULT_LIFETIME, no_datastore=False):
     """WSGI middleware that adds session support.
 
-    ``lifetime`` - ``datetime.timedelta`` that specifies how long a session may last.
+    ``lifetime`` - ``datetime.timedelta`` that specifies how long a session may last.  Defaults to 7 days.
 
     ``no_datastore`` - By default all writes also go to the datastore in case
     memcache is lost.  Set to True to never use the datastore. This improves
@@ -317,24 +380,31 @@ class SessionMiddleware(object):
     ``cookie_only_threshold`` - A size in bytes.  If session data is less than this
     threshold, then session data is kept only in a secure cookie.  This avoids
     memcache/datastore latency which is critical for small sessions.  Larger
-    sessions are kept in memcache+datastore instead.
+    sessions are kept in memcache+datastore instead.  Defaults to **TBD**.
+
+    ``cookie_key`` - A key used to secure cookies so users cannot modify their
+    content.  Keys should be at least 32 bytes (RFC2104).  Tip: generate your
+    key using ``os.urandom(64)``.  Required if ``cookie_only_threshold > 0``.
     """
+    def __init__(self, app, lifetime=DEFAULT_LIFETIME, no_datastore=False, cookie_only_threshold=DEFAULT_COOKIE_ONLY_THRESH, cookie_key=None):
         self.app = app
         self.lifetime = lifetime
         self.no_datastore = no_datastore
         self.cookie_only_thresh = cookie_only_threshold
+        self.cookie_key = cookie_key
+        if self.cookie_only_thresh > 0 and not self.cookie_key:
+            raise ValueError("cookie_key MUST be specified (unless you set cookie_only_threshold to 0)")
 
     def __call__(self, environ, start_response):
         # initialize a session for the current user
         global _current_session
-        _current_session = Session(lifetime=self.lifetime, no_datastore=self.no_datastore)
+        _current_session = Session(lifetime=self.lifetime, no_datastore=self.no_datastore, cookie_only_threshold=self.cookie_only_thresh, cookie_key=self.cookie_key)
 
         # create a hook for us to insert a cookie into the response headers
         def my_start_response(status, headers, exc_info=None):
-            cookie_out = _current_session.get_cookie_out()
-            if cookie_out:
-                headers.append(('Set-Cookie', cookie_out))
             _current_session.save() # store the session if it was changed
+            for ch in _current_session.make_cookie_headers():
+                headers.append(('Set-Cookie', ch))
             return start_response(status, headers, exc_info)
 
         # let the app do its thing
