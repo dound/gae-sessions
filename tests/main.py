@@ -18,11 +18,8 @@ def get_test_entity(i):
     """Create the entity just like it would be in the datastore (so our tests don't actually go to the datastore)."""
     return TestModel(key=db.Key.from_path('TestModel', str(i)), s="a"*500, i=i, f=i*10.0)
 
-# matches any sid
-ANY_SID = '*'
-
 class SessionState(object):
-    def __init__(self, sid, data, in_mc, in_db):
+    def __init__(self, sid, data, dirty, in_mc, in_db):
         self.sid = sid
         if not data:
             self.data = {}  # treat None and empty dictionary the same
@@ -32,13 +29,8 @@ class SessionState(object):
         self.in_db = in_db  # whether it is in the db AND accessible (i.e., db is up)
 
     def __cmp__(self, s):
-        c = None
-        if self.sid is not None and s is not None:
-            if self.sid==ANY_SID or s==ANY_SID:
-                c = 0  # if one is ANY_SID, then don't care what the other is as long as it isn't None
-        if c is None:
-            c = cmp(self.sid, s.sid)
-            if c != 0: return c
+        c = cmp(self.sid, s.sid)
+        if c != 0: return c
         c = cmp(self.data, s.data)
         if c != 0: return c
         c = cmp(self.in_mc, s.in_mc)
@@ -67,7 +59,7 @@ def make_ss(session):
                 in_db = False
         except:
             in_db = False  # db failure (perhaps it is down)
-    return SessionState(sid, session.data, in_mc, in_db)
+    return SessionState(sid, session.data, session.dirty, in_mc, in_db)
 
 class CleanupExpiredSessions(webapp.RequestHandler):
     def get(self):
