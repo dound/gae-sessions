@@ -6,7 +6,7 @@ from google.appengine.api import memcache
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 
-from gaesessions import get_current_session, SessionMiddleware, SessionModel, delete_expired_sessions
+from gaesessions import get_current_session, Session, SessionMiddleware, SessionModel, delete_expired_sessions
 
 logger = logging.getLogger('SERVER')
 logger.setLevel(logging.DEBUG)
@@ -109,16 +109,34 @@ class RPCHandler(webapp.RequestHandler):
             except Exception, e:
                 logger.error('failed to execute RPC: %s(session, *%s, **%s) - %s' % (f,args,kwargs,e))
                 return self.error(500)
+        self.request.environ['test_outputs'] = outputs
 
-        resp = (outputs, make_ss(session))
-        self.response.out.write(b64encode(pickle.dumps(resp)))
+class TestingMiddleware(object):
+    """Dumps session state and environ['test_outputs'] into the response if the
+    'test_outputs' key is set.  This middleware should wrap the sessions
+    middleware so that the dumped session state is the final state (i.e., after
+    the middleware has finished and no more changes are being made to it).
+    """
+    def __init__(self, app):
+        self.app = app
+    def __call__(self, environ, start_response):
+        def my_start_response(status, headers, exc_info=None):
+            ret = start_response(status, headers, exc_info)
+            if environ.has_key('test_outputs'):
+                outputs = environ['test_outputs']
+                resp = (outputs, make_ss(get_current_session()))
+                # add to the response ...
+                ret(b64encode(pickle.dumps(resp)))
+            return ret
+
+        return self.app(environ, my_start_response)
 
 def make_application(**kwargs):
     app = webapp.WSGIApplication([('/',               RPCHandler),
                                   ('/flush_memcache', FlushMemcache),
                                   ('/cleanup',        CleanupExpiredSessions),
                                   ], debug=True)
-    return SessionMiddleware(app, **kwargs)
+    return TestingMiddleware(SessionMiddleware(app, **kwargs))
 
 DEFAULT_COOKIE_KEY = '\xedd\xa7\x83\xf2\xd3\xdc%!U8s\x10\x19\xae\x8f\xce\x82\x94\x92\x9c\xf4`\xb4\xca\xcb\x91.\x0eIA~\xc5\xc0\xd5\xaeeIJ\xaf\x88}=\xc8\x96\xed.\xcb\xe7C\x81\xa3\r\xca\xeb\x1c\xfc\xa4V\xc5l\xf7+\xec'
 def main(): run_wsgi_app(make_application(cookie_key=DEFAULT_COOKIE_KEY))
