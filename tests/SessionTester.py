@@ -103,12 +103,12 @@ class SessionTester(object):
         if self.ss.sid == ANY_SID:
             self.ss.sid = remote_ss.sid
 
-        assert self.ss == remote_ss, 'mismatch b/w local and remote states:\n\tlocal: %s\n\tremote: %s' % (self.ss, remote_ss)
+        assert self.ss == remote_ss, 'mismatch b/w local and remote states:\n\tlocal:  %s\n\tremote: %s' % (self.ss, remote_ss)
         assert len(remote_outputs)==len(self.outputs), 'internal test error: number outputs should be the same'
         assert len(remote_outputs)==len(self.rpcs), 'internal test error: number outputs should be the same as the number of RPCs'
         for i in xrange(len(remote_outputs)):
             l, r = self.outputs[i], remote_outputs[i]
-            assert l==r, 'output for rpc #%d (%s) does not match:\n\tlocal: %s\n\tremote: %s' % (i, self.rpcs[i], l, r)
+            assert l==r, 'output for rpc #%d (%s) does not match:\n\tlocal:  %s\n\tremote: %s' % (i, self.rpcs[i], l, r)
 
         # extra checks we sometimes need to do
         if self.check_expir:
@@ -135,7 +135,7 @@ class SessionTester(object):
         # check the cookies' data too
         if self.data_should_be_in_cookie:
             data = Session._Session__decode_data(pdump)
-            assert self.ss.data==data, 'cookie does not contain the correct data:\n\tlocal: %s\n\tcookie: %s' % (self.ss.data, data)
+            assert self.ss.data==data, 'cookie does not contain the correct data:\n\tlocal:  %s\n\tcookie: %s' % (self.ss.data, data)
         else:
             assert len(pdump)==0, "cookie specifies data but there shouldn't be any"
 
