@@ -272,7 +272,7 @@ class Session(object):
             if not persist_even_if_using_cookie:
                 return
 
-        mc_ok = memcache.set(self.sid, pdump)
+        memcache.set(self.sid, pdump)  # may fail if memcache is down
 
         # persist the session to the datastore
         if self.dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB or self.no_datastore:
@@ -281,10 +281,6 @@ class Session(object):
             SessionModel(key_name=self.sid, pdump=pdump).put()
         except Exception, e:
             logging.warning("unable to persist session to datastore for sid=%s (%s)" % (self.sid,e))
-
-        # retry the memcache set after the db op if the memcache set failed
-        if not mc_ok:
-            memcache.set(self.sid, pdump)
 
     # Users may interact with the session through a dictionary-like interface.
     def clear(self):
