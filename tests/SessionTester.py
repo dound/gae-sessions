@@ -166,10 +166,6 @@ class SessionTester(object):
 
     # **************************************************************************
     # helpers for our mocks of Session methods
-    def __check_expir(self, expiration):
-        if expiration is not None:
-            self.check_expir = int(time.mktime((expiration).timetuple()))
-
     def __set_in_mc_db_to_true_if_ok(self):
         enc_len = len(Session._Session__encode_data(self.ss.data))
         if enc_len * 4 / 3 <= self.app_args['cookie_only_threshold']:
@@ -187,12 +183,12 @@ class SessionTester(object):
                 self.ok_if_in_db_remotely = True  # once its in, it will stay there until terminate()
         self.ss.in_mc = self.api_statuses['mc_can_wr'] and self.api_statuses['mc_can_rd']
 
-    def __start(self, expiration=None):
+    def __start(self, expiration_ts=None):
         self.ss.data = {}
         self.ss.sid = ANY_SID
         self.ss.dirty = True
         self.__set_in_mc_db_to_true_if_ok()
-        self.__check_expir(expiration)
+        self.check_expir = expiration_ts
 
     # mocks for all the 'public' methods on Session
     @session_method
@@ -217,13 +213,15 @@ class SessionTester(object):
             return 0
 
     @session_method
-    def regenerate_id(self, expiration=None):
+    def regenerate_id(self, expiration_ts=None):
         if self.ss.sid:
             self.check_sid_is_not = self.ss.sid
-            self.check_expir = int(self.ss.sid.split('_')[0])
+            if expiration_ts is None:
+                self.check_expir = int(self.ss.sid.split('_')[0])
+            else:
+                self.check_expir = expiration_ts
             self.ss.sid = ANY_SID
             self.ss.dirty = True
-        self.__check_expir(expiration)
 
     @session_method
     def start(self, expiration=None):
