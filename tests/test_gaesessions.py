@@ -41,18 +41,9 @@ def main():
         os.remove('./.coverage')
     except Exception,e:
         pass
-    f = os.fork()
-    if f == 0:
-        # run nose in its own process because the .coverage file isn't written
-        # until the process terminates and we need to read it
-        nose.run()
-    else:
-        # wait for the nose process to finish
-        os.waitpid(f, 0)
-        print 'generating coverage report ...'
-        cov = coverage.coverage()
-        cov.load()
-        cov.html_report(directory="covhtml", omit_prefixes=["/usr"])
-        print 'done'
+
+    # run nose in its own process because the .coverage file isn't written
+    # until the process terminates and we need to read it
+    nose.run()
 
 if __name__ == '__main__': main()
