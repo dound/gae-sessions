@@ -177,13 +177,21 @@ class SessionTester(object):
         sid = aggr[SIG_LEN:SIG_LEN+SID_LEN]
         data = aggr[SIG_LEN+SID_LEN:]
         pdump = b64decode(data)
+        if sid is '':
+            sid = None
         assert self.ss.sid == sid, 'cookie specifies SID %s but we expected %s' % (sid, self.ss.sid)
-        exp_sig = Session._Session__compute_hmac(self.app_args['cookie_key'], sid, pdump)
-        assert sig==exp_sig, 'cookie received with invalid sig %s (expected %s)' % (sig, exp_sig)
+        if not sid:
+            assert sig is '', "sig should not be present if there is no sid"
+        else:
+            exp_sig = Session._Session__compute_hmac(self.app_args['cookie_key'], sid, pdump)
+            assert sig==exp_sig, 'cookie received with invalid sig %s (expected %s)' % (sig, exp_sig)
 
         # check the cookies' data too
         if self.data_should_be_in_cookie:
-            data = Session._Session__decode_data(pdump)
+            if pdump:
+                data = Session._Session__decode_data(pdump)
+            else:
+                data = None
             assert self.ss.data==data, 'cookie does not contain the correct data:\n\tlocal:  %s\n\tcookie: %s' % (self.ss.data, data)
         else:
             assert len(pdump)==0, "cookie specifies data but there shouldn't be any"
@@ -291,6 +299,7 @@ class SessionTester(object):
         self.ss.dirty = False
         self.ss.in_db = False
         self.ss.in_mc = False
+        self.data_should_be_in_cookie = False
 
     @session_method
     def save(self, persist_even_if_using_cookie=False):
