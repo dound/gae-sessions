@@ -71,8 +71,15 @@ def make_ss(session):
 
 class CleanupExpiredSessions(webapp.RequestHandler):
     def get(self):
+        num_before = SessionModel.all().count()
         delete_expired_sessions()
-        self.response.out.write('%d' % TestModel.all().count())
+        num_after = SessionModel.all().count()
+        self.response.out.write('%d,%d' % (num_before, num_after))
+
+class DeleteAll(webapp.RequestHandler):
+    def get(self):
+        memcache.flush_all()
+        db.delete(SessionModel.all(keys_only=True).fetch(1000))
 
 class FlushMemcache(webapp.RequestHandler):
     def get(self):
@@ -154,7 +161,8 @@ def make_application(**kwargs):
     app = webapp.WSGIApplication([('/',               RPCHandler),
                                   ('/flush_memcache', FlushMemcache),
                                   ('/cleanup',        CleanupExpiredSessions),
-                                  ('/get_by_sid',     GetSession)
+                                  ('/get_by_sid',     GetSession),
+                                  ('/delete_all',     DeleteAll),
                                   ], debug=True)
     return TestingMiddleware(SessionMiddleware(app, **kwargs))
 

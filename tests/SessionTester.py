@@ -1,5 +1,6 @@
 from base64 import b64decode, b64encode
 import logging
+from nose.tools import assert_equal
 import pickle
 import time
 from webtest import TestApp
@@ -38,15 +39,41 @@ def session_method(f):
 # matches any sid
 ANY_SID = object()
 
+class AppWithMultipleClients(TestApp):
+    def __init__(self, *args, **kwargs):
+        super(AppWithMultipleClients, self).__init__(*args, **kwargs)
+        self.client_cookies = {}
+        self.current_client = None
+
+    def set_client(self, client):
+        self.current_client = client
+        self.cookies = self.client_cookies.get(client, {})
+
+    def do_request(self, req, status, expect_errors):
+        ret = super(AppWithMultipleClients, self).do_request(req, status, expect_errors)
+        self.client_cookies[self.current_client] = self.cookies
+        return ret
+
 class SessionTester(object):
     """Manages testing a session by executing a mocked version of a Session and
     the "real thing" (being run by main.py) and then verifying that they output
     the same information and end up in the same state.
+
+    st may be a reference to another SessionTester.  If so, they will share the
+    same instance of the webapp => same datastore and all.  Cookies will be
+    unique to each SessionTester instance, so each is like a separate client.
+
+    If st is None, then a new webapp is initialized and the datastore and
+    memcache are cleared.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, st=None, **kwargs):
         if not kwargs.has_key('cookie_key'):
             kwargs['cookie_key'] = DEFAULT_COOKIE_KEY
-        self.app = TestApp(make_application(**kwargs))
+        if st is None:
+            self.app = AppWithMultipleClients(make_application(**kwargs))
+            assert self.app.get('/delete_all').status[:3] == '200'
+        else:
+            self.app = st.app  # share the same webapp, but we'll use our own cookies
         self.ss = self.new_session_state()
         self.rpcs = None          # calls on Session object waiting to be made remotely
         self.outputs = None       # outputs of local procedure calls
@@ -103,6 +130,7 @@ class SessionTester(object):
         self.save()
 
         logger.info('Running request: rpcs=%s' % self.rpcs)
+        self.app.set_client(self)
         resp = self.app.post('/', dict(rpcs=b64encode(pickle.dumps(self.rpcs)), api_statuses=b64encode(pickle.dumps(self.api_statuses))))
         assert resp.status[:3] == '200', 'did not get code 200 back: %s' % resp
         remote_outputs, remote_ss = pickle.loads(b64decode(resp.body))
@@ -166,14 +194,20 @@ class SessionTester(object):
         self.finish_request_and_check()
 
     def flush_memcache(self):
+        """Deletes everything from memcache."""
         self.ok_if_in_mc_remotely = False
         if self.app_args['no_datastore'] and not self.data_should_be_in_cookie:
             # session is gone
             self.check_sid_is_not = self.ss.sid
             self.new_session_state()
 
-        resp = self.app.get('/flush_memcache')
+        resp = self.get_url('/flush_memcache')
         assert 'ok' in resp.body
+
+    def get_url(self, url):
+        """Wrapper around TestApp.get() which sets the cookies up for the requester."""
+        self.app.set_client(self)
+        return self.app.get(url)
 
     # **************************************************************************
     # helpers for our mocks of Session methods
