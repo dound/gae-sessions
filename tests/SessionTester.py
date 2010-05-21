@@ -302,7 +302,7 @@ class SessionTester(object):
 
     @session_method
     def __iter__(self):
-        return self.ss.data.iterkeys()
+        raise NotImplementedError("doesn't fit into our test framework - the correct return value cannot be pickled")
 
     @session_method
     def __contains__(self, key):
