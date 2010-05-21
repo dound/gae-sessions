@@ -1,6 +1,7 @@
 from base64 import b64decode
 import logging
 import pickle
+import time
 
 from google.appengine.ext import db
 from nose.tools import assert_equal, assert_not_equal, assert_raises
@@ -30,8 +31,8 @@ def test_sessions():
     """Run a variety of tests on various session configurations (includes
     whether or not to use the datastore and the cookie only threshold).
     """
-    CHECKS = (check_correct_usage,)
-    # not yet written: check_expiration, check_invalid_usage, check_memcache_loss, check_bad_cookie)
+    CHECKS = (check_correct_usage, check_expiration)
+    # not yet written: check_invalid_usage, check_memcache_loss, check_bad_cookie)
     for no_datastore in (False, True):
         if no_datastore:
             test_db = 'without'
@@ -49,28 +50,31 @@ def test_sessions():
                 logger.debug('Running %s %s datastore and %s' % (check.__name__, test_db, test_cookie))
                 yield check, no_datastore, cot
 
+# helper function which checks how many sessions we should have in the db
+# given the current test's configuration
+def generic_expected_num_sessions_in_db_if_db_used(st, no_datastore, cookie_only_threshold,
+                                                   num, num_above_cookie_thresh=0, num_after=None):
+    if not no_datastore:
+        if cookie_only_threshold == 0:
+            st.verify_active_sessions_in_db(num,num_after)
+        else:
+            st.verify_active_sessions_in_db(num_above_cookie_thresh, num_after)
+    else:
+        st.verify_active_sessions_in_db(0)  # cookie or memcache only
+
 def check_correct_usage(no_datastore, cookie_only_threshold):
+    """Checks correct usage of session including in the face of memcache data loss."""
     def minitest_divider(test):
         logger.debug('\n\n' + '-'*50)
         logger.debug(test + ' (nd=%s cot=%s)' % (no_datastore, cookie_only_threshold))
 
     st = SessionTester(no_datastore=no_datastore, cookie_only_threshold=cookie_only_threshold)
+    expected_num_sessions_in_db_if_db_used = lambda a,b=0 : generic_expected_num_sessions_in_db_if_db_used(st, no_datastore, cookie_only_threshold, a, b)
     st.verify_active_sessions_in_db(0)
 
     minitest_divider('try doing nothing (no session should be started)')
     st.noop()
     st.verify_active_sessions_in_db(0)
-
-    # helper function which checks how many sessions we should have in the db
-    # given the current test's configuration
-    def expected_num_sessions_in_db_if_db_used(num, num_above_cookie_thresh=0):
-        if not no_datastore:
-            if cookie_only_threshold == 0:
-                st.verify_active_sessions_in_db(num)
-            else:
-                st.verify_active_sessions_in_db(num_above_cookie_thresh)
-        else:
-            st.verify_active_sessions_in_db(0)  # cookie or memcache only
 
     minitest_divider('start a session with a single write')
     st.start_request()
@@ -83,7 +87,7 @@ def check_correct_usage(no_datastore, cookie_only_threshold):
     expected_num_sessions_in_db_if_db_used(1)
 
     minitest_divider('start another session')
-    st2 = SessionTester(st=st, no_datastore=no_datastore, cookie_only_threshold=cookie_only_threshold)
+    st2 = SessionTester(st=st)
     st2.start_request()
     assert not st2.is_active()
     assert st2.get('x') is None, "shouldn't get other session's data"
@@ -232,6 +236,38 @@ def check_correct_usage(no_datastore, cookie_only_threshold):
     st.set_quick('msg', 'hello')
     st['z'] = 99
     st.finish_request_and_check()
+
+def check_expiration(no_datastore, cookie_only_threshold):
+    st = SessionTester(no_datastore=no_datastore, cookie_only_threshold=cookie_only_threshold)
+    expected_num_sessions_in_db_if_db_used = lambda a,c : generic_expected_num_sessions_in_db_if_db_used(st, no_datastore, cookie_only_threshold, a, 0, c)
+
+    # generate some sessions
+    num_to_start = 20
+    sessions_which_expire_shortly = (1, 3, 8, 9, 11)
+    expir_time = int(time.time() + 1)
+    sts = []
+    for i in xrange(num_to_start):
+        stnew = SessionTester(st=st)
+        sts.append(stnew)
+        stnew.start_request()
+        if i in sessions_which_expire_shortly:
+            stnew.start(expiration_ts=time.time()-1)
+        else:
+            stnew.start(expiration_ts=time.time()+600)
+        stnew.finish_request_and_check()
+
+    # try accessing an expired session
+    st_expired = sts[sessions_which_expire_shortly[0]]
+    st_expired.start_request()
+    assert not st_expired.is_active()
+    st_expired.finish_request_and_check()
+
+    if cookie_only_threshold > 0:
+        return  # no need to see if cleaning up db works - nothing there for this case
+
+    # check that after cleanup only unexpired ones are left in the db
+    num_left = num_to_start - len(sessions_which_expire_shortly)
+    expected_num_sessions_in_db_if_db_used(num_to_start-1, num_left)  # -1 b/c we manually expired one above
 
 def main():
     """Run nose tests and generate a coverage report."""
