@@ -27,7 +27,7 @@ class TestModel(db.Model):
         return 'TestModel%s' % self.key().id_or_name()
 
 # note: these entities are about 900B when stored as a protobuf
-def get_test_entity(i):
+def make_entity(i):
     """Create the entity just like it would be in the datastore (so our tests don't actually go to the datastore)."""
     return TestModel(key=db.Key.from_path('TestModel', str(i)), s="a"*500, i=i, f=i*10.0)
 
