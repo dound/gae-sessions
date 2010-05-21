@@ -108,7 +108,7 @@ class RPCHandler(webapp.RequestHandler):
                 try:
                     output = f(*args, **kwargs)
                 except Exception, e:
-                    output = e
+                    output = '%s-%s' % (type(e), e)
                 outputs.append(output)
                 logger.info('%s(%s, %s) => %s' % (f, args, kwargs, output))
             except Exception, e:

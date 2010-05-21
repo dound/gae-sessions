@@ -23,11 +23,16 @@ def session_method(f):
         myself.rpcs.append(rpc)
         try:
             output = f(*args, **kwargs)
+            caught_exception = None
         except Exception, e:
-            output = e
+            output = '%s-%s' % (type(e), e)
+            caught_exception = e
         myself.outputs.append(output)
         logger.info('rpc enqueud: %s(%s, %s)' % (f.__name__,args[1:],kwargs))
-        return output
+        if caught_exception:
+            raise caught_exception
+        else:
+            return output
     return stub
 
 # matches any sid
