@@ -1,5 +1,4 @@
 from base64 import b64decode, b64encode
-from Cookie import _unquote
 import logging
 import pickle
 import time
@@ -18,6 +17,8 @@ def session_method(f):
     """
     def stub(*args, **kwargs):
         myself = args[0]
+        if myself.rpcs is None:
+            raise RuntimeError("you must start a request before you can call a session method")
         rpc = (f.__name__, args[1:], kwargs)
         myself.rpcs.append(rpc)
         try:
@@ -92,6 +93,10 @@ class SessionTester(object):
         """
         if self.rpcs is None:
             raise RuntimeError("tried to finish a request before starting a request")
+
+        # like the real thing, call save() at the end of a request
+        self.save()
+
         logger.info('Running request: rpcs=%s' % self.rpcs)
         resp = self.app.post('/', dict(rpcs=b64encode(pickle.dumps(self.rpcs)), api_statuses=b64encode(pickle.dumps(self.api_statuses))))
         assert resp.status[:3] == '200', 'did not get code 200 back: %s' % resp
@@ -110,6 +115,7 @@ class SessionTester(object):
         for i in xrange(len(remote_outputs)):
             l, r = self.outputs[i], remote_outputs[i]
             assert l==r, 'output for rpc #%d (%s) does not match:\n\tlocal:  %s\n\tremote: %s' % (i, self.rpcs[i], l, r)
+        logger.info('state (local and remote): %s' % self.ss)
 
         # extra checks we sometimes need to do
         if self.check_expir:
@@ -166,18 +172,19 @@ class SessionTester(object):
 
     # **************************************************************************
     # helpers for our mocks of Session methods
-    def __set_in_mc_db_to_true_if_ok(self):
+    def __set_in_mc_db_to_true_if_ok(self, force_persist=False):
         enc_len = len(Session._Session__encode_data(self.ss.data))
         if enc_len * 4 / 3 <= self.app_args['cookie_only_threshold']:
             self.ss.in_db = self.ss.in_mc = False  # cookie-only
             self.data_should_be_in_cookie = True
-            return
+            if not force_persist:
+                return
         else:
             self.data_should_be_in_cookie = False
-            # once its into mc, it will stay there until terminate() or a flush_all()
-            self.ok_if_in_mc_remotely = True
+        # once its into mc, it will stay there until terminate() or a flush_all()
+        self.ok_if_in_mc_remotely = True
 
-        if self.ss.dirty != Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
+        if self.ss.dirty and self.ss.dirty is not Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
             self.ss.in_db = not self.app_args['no_datastore'] and self.api_statuses['db_can_wr'] and self.api_statuses['db_can_rd']
             if self.ss.in_db:
                 self.ok_if_in_db_remotely = True  # once its in, it will stay there until terminate()
@@ -237,10 +244,8 @@ class SessionTester(object):
 
     @session_method
     def save(self, persist_even_if_using_cookie=False):
-        if not persist_even_if_using_cookie:
-            pass  # save happens at the end anyway; doing it in the middle is a no-op assuming no unhandled exceptions are raised
-        elif self.ss.sid:
-            self.__set_in_mc_db_to_true_if_ok()
+        if self.ss.sid:
+            self.__set_in_mc_db_to_true_if_ok(persist_even_if_using_cookie)
         self.ss.dirty = False
 
     @session_method

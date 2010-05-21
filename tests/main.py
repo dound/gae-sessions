@@ -55,12 +55,17 @@ def make_ss(session):
             in_mc = False
 
         try:
-            sm = SessionModel.all().get_by_key_name(sid)
+            sm = SessionModel.get_by_key_name(sid)
             if sm and session.data==Session._Session__decode_data(sm.pdump):
                 in_db = True
             else:
                 in_db = False
-        except:
+                if sm:
+                    logger.info('in db, but stale: current=%s db=%s' % (session.data, Session._Session__decode_data(sm.pdump)))
+                else:
+                    logger.info('session not in db at all')
+        except Exception, e:
+            logging.warn('db failed: %s => %s' % (type(e), e))
             in_db = False  # db failure (perhaps it is down)
     return SessionState(sid, session.data, session.dirty, in_mc, in_db)
 
