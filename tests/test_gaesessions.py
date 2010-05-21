@@ -49,11 +49,11 @@ def test_sessions():
                 logger.debug('Running %s %s datastore and %s' % (check.__name__, test_db, test_cookie))
                 yield check, no_datastore, cot
 
-def minitest_divider(test):
-    logger.debug('\n\n' + '-'*50)
-    logger.debug(test)
-
 def check_correct_usage(no_datastore, cookie_only_threshold):
+    def minitest_divider(test):
+        logger.debug('\n\n' + '-'*50)
+        logger.debug(test + ' (nd=%s cot=%s)' % (no_datastore, cookie_only_threshold))
+
     st = SessionTester(no_datastore=no_datastore, cookie_only_threshold=cookie_only_threshold)
     st.verify_active_sessions_in_db(0)
 
@@ -186,6 +186,51 @@ def check_correct_usage(no_datastore, cookie_only_threshold):
     st['list'] = ['b', 'd', 'f']
     st['set'] = set([2, 3, 5, 7, 11, 13, 17, 19])
     st['tuple'] = (7, 7, 1985)
+    st.finish_request_and_check()
+    st.start_request()
+    st.clear()
+    st.finish_request_and_check()
+
+    minitest_divider("test quick methods: basic usage")
+    st.start_request()
+    st.set_quick('msg', 'mc only!')
+    assert_equal('mc only!', st['msg'])
+    st.finish_request_and_check()
+    st.start_request()
+    assert_equal('mc only!', st.pop_quick('msg'))
+    assert_raises(KeyError, st.__getitem__, 'msg')
+    st.finish_request_and_check()
+
+    minitest_divider("test quick methods: flush memcache (value will be lost if not using cookies)")
+    st.start_request()
+    st.set_quick('a', 1)
+    st.set_quick('b', 2)
+    st.finish_request_and_check()
+    st.flush_memcache()
+    st.start_request()
+    if cookie_only_threshold > 0:
+        assert_equal(st['a'], 1)
+        assert_equal(st['b'], 2)
+    else:
+        assert_raises(KeyError, st.__getitem__, 'a')
+        assert_raises(KeyError, st.__getitem__, 'b')
+    st.finish_request_and_check()
+
+    minitest_divider("test quick methods: flush memcache should have no impact if another mutator is also used (and this ISNT memcache-only)")
+    st.start_request()
+    st['x'] =  24
+    st.set_quick('a', 1)
+    st.finish_request_and_check()
+    st.flush_memcache()
+    st.start_request()
+    if no_datastore and cookie_only_threshold == 0:
+        assert_raises(KeyError, st.__getitem__, 'a')
+        assert_raises(KeyError, st.__getitem__, 'x')
+    else:
+        assert_equal(st['a'], 1)
+        assert_equal(st['x'], 24)
+    st.set_quick('msg', 'hello')
+    st['z'] = 99
     st.finish_request_and_check()
 
 def main():
