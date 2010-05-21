@@ -204,6 +204,17 @@ class SessionTester(object):
         resp = self.get_url('/flush_memcache')
         assert 'ok' in resp.body
 
+    def verify_active_sessions_in_db(self, num_before, num_after=None):
+        """Expires any old sessions and checks that there were num_before
+        sessions before old ones were expired, and num_after after old ones
+        were expired.  If only num_before is specified, then we check that the
+        number if sessions is that number before and after expiring old sessions."""
+        if num_after is None:
+            num_after = num_before
+        resp = self.get_url('/cleanup')
+        expected = '%d,%d' % (num_before,num_after)
+        assert_equal(resp.body, expected)
+
     def get_url(self, url):
         """Wrapper around TestApp.get() which sets the cookies up for the requester."""
         self.app.set_client(self)
