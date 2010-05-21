@@ -98,6 +98,8 @@ class SessionTester(object):
         self.ok_if_in_mc_remotely = False
         self.ok_if_in_db_remotely = False
         self.data_should_be_in_cookie = False
+        self.dirty = False
+        self.keys_in_mc_only = {}
         return self.ss
 
     def start_request(self, mc_can_read=True, mc_can_write=True, db_can_read=True, db_can_write=True):
@@ -204,10 +206,17 @@ class SessionTester(object):
     def flush_memcache(self):
         """Deletes everything from memcache."""
         self.ok_if_in_mc_remotely = False
+        self.ss.in_mc = False
         if self.app_args['no_datastore'] and not self.data_should_be_in_cookie:
             # session is gone
             self.check_sid_is_not = self.ss.sid
             self.new_session_state()
+
+        # remove anything that was only in memcache
+        if not self.data_should_be_in_cookie:
+            for k in self.keys_in_mc_only.iterkeys():
+                self.ss.data.pop(k, None)
+        self.keys_in_mc_only.clear()
 
         resp = self.get_url('/flush_memcache')
         assert 'ok' in resp.body
@@ -242,16 +251,20 @@ class SessionTester(object):
         # once its into mc, it will stay there until terminate() or a flush_all()
         self.ok_if_in_mc_remotely = True
 
-        if self.ss.dirty and self.ss.dirty is not Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
+        if self.dirty and self.dirty is not Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
             self.ss.in_db = not self.app_args['no_datastore'] and self.api_statuses['db_can_wr'] and self.api_statuses['db_can_rd']
             if self.ss.in_db:
                 self.ok_if_in_db_remotely = True  # once its in, it will stay there until terminate()
+                self.keys_in_mc_only.clear()  # pushed them all to the db
+        elif self.dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB:
+            self.ss.in_db = False
+
         self.ss.in_mc = self.api_statuses['mc_can_wr'] and self.api_statuses['mc_can_rd']
 
     def __start(self, expiration_ts=None):
         self.ss.data = {}
         self.ss.sid = ANY_SID
-        self.ss.dirty = True
+        self.dirty = True
         self.__set_in_mc_db_to_true_if_ok()
         self.check_expir = expiration_ts
 
@@ -286,7 +299,7 @@ class SessionTester(object):
             else:
                 self.check_expir = expiration_ts
             self.ss.sid = ANY_SID
-            self.ss.dirty = True
+            self.dirty = True
 
     @session_method
     def start(self, expiration=None):
@@ -296,22 +309,22 @@ class SessionTester(object):
     def terminate(self, clear_data=True):
         self.ss.sid = None
         self.ss.data = {}
-        self.ss.dirty = False
+        self.dirty = False
         self.ss.in_db = False
         self.ss.in_mc = False
         self.data_should_be_in_cookie = False
 
     @session_method
     def save(self, persist_even_if_using_cookie=False):
-        if self.ss.sid:
+        if self.ss.sid and self.dirty:
             self.__set_in_mc_db_to_true_if_ok(persist_even_if_using_cookie)
-        self.ss.dirty = False
+        self.dirty = False
 
     @session_method
     def clear(self):
         self.ss.data.clear()
         if self.ss.sid:
-            self.ss.dirty = True
+            self.dirty = True
 
     @session_method
     def get(self, key, default=None):
@@ -323,21 +336,24 @@ class SessionTester(object):
 
     @session_method
     def pop(self, key, default=None):
-        self.ss.dirty = True
+        self.dirty = True
         return self.ss.data.pop(key, default)
 
     @session_method
     def pop_quick(self, key, default=None):
-        if not self.ss.dirty:
-            self.ss.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
+        if not self.dirty:
+            self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
+        self.keys_in_mc_only.pop(key, None)
         return self.ss.data.pop(key, default)
 
     @session_method
     def set_quick(self, key, value):
-        if not self.ss.dirty:
-            self.ss.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
+        if not self.ss.sid:
+            self.__start()
+        if not self.dirty:
+            self.dirty = Session.DIRTY_BUT_DONT_PERSIST_TO_DB
+        self.keys_in_mc_only[key] = True
         self.ss.data.__setitem__(key, value)
-
     @session_method
     def __getitem__(self, key):
         return self.ss.data.__getitem__(key)
@@ -347,12 +363,12 @@ class SessionTester(object):
         if not self.ss.sid:
             self.__start()
         self.ss.data.__setitem__(key, value)
-        self.ss.dirty = True
+        self.dirty = True
 
     @session_method
     def __delitem__(self, key):
         self.ss.data.__delitem__(key)
-        self.ss.dirty = True
+        self.dirty = True
 
     @session_method
     def __iter__(self):
