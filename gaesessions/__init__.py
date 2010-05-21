@@ -64,6 +64,7 @@ class Session(object):
 
         if sid:
             self.__set_sid(sid, False)
+            self.data = None
         else:
             self.__read_cookie()
 
@@ -88,7 +89,7 @@ class Session(object):
             pdump = b64decode(b64pdump)
             actual_sig = Session.__compute_hmac(self.base_key, sid, pdump)
             if sig == actual_sig:
-                self.sid = sid
+                self.__set_sid(sid, False)
                 # check for expiration and terminate the session if it has expired
                 if time.time() > self.get_expiration():
                     return self.terminate()
