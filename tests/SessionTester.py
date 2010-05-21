@@ -67,18 +67,21 @@ class SessionTester(object):
     memcache are cleared.
     """
     def __init__(self, st=None, **kwargs):
-        if not kwargs.has_key('cookie_key'):
+        if not kwargs.has_key('cookie_key') and st is None:
             kwargs['cookie_key'] = DEFAULT_COOKIE_KEY
         if st is None:
             self.app = AppWithMultipleClients(make_application(**kwargs))
             assert self.app.get('/delete_all').status[:3] == '200'
+            self.app_args = kwargs
         else:
             self.app = st.app  # share the same webapp, but we'll use our own cookies
+            self.app_args = st.app_args
+            assert len(kwargs)==0, "no args should be passed other than st if st is given"
+
         self.ss = self.new_session_state()
         self.rpcs = None          # calls on Session object waiting to be made remotely
         self.outputs = None       # outputs of local procedure calls
         self.api_statuses = None  # whether various APIs are up or down
-        self.app_args = kwargs
 
         # extra checks; if None, then don't do them
         self.check_expir = None
