@@ -37,6 +37,10 @@ def main():
     import os
     from shutil import rmtree
     rmtree('./covhtml', ignore_errors=True)
+    try:
+        os.remove('./.coverage')
+    except Exception,e:
+        pass
     f = os.fork()
     if f == 0:
         # run nose in its own process because the .coverage file isn't written
