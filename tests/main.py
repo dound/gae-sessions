@@ -16,6 +16,16 @@ class TestModel(db.Model):
     i = db.IntegerProperty()
     f = db.FloatProperty()
 
+    def __cmp__(self, o):
+        c = cmp(self.s, o.s)
+        if c != 0: return c
+        c = cmp(self.i, o.i)
+        if c != 0: return c
+        return cmp(self.f, o.f)
+
+    def __repr__(self):
+        return 'TestModel%s' % self.key().id_or_name()
+
 # note: these entities are about 900B when stored as a protobuf
 def get_test_entity(i):
     """Create the entity just like it would be in the datastore (so our tests don't actually go to the datastore)."""
