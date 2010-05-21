@@ -143,12 +143,12 @@ class Session(object):
         except:
             return 0
 
-    def __make_sid(self, expire_dt=None):
+    def __make_sid(self, expire_ts=None):
         """Returns a new session ID."""
         # make a random ID (random.randrange() is 10x faster but less secure?)
-        if not expire_dt:
+        if not expire_ts:
             expire_dt = datetime.datetime.now() + self.lifetime
-        expire_ts = int(time.mktime((expire_dt).timetuple()))
+            expire_ts = int(time.mktime((expire_dt).timetuple()))
         return str(expire_ts) + '_' + hashlib.md5(os.urandom(16)).hexdigest()
 
     @staticmethod
@@ -173,26 +173,36 @@ class Session(object):
             eO[k] = db.model_from_protobuf(v)
         return eO
 
-    def regenerate_id(self, expiration=None):
+    def regenerate_id(self, expiration_ts=None):
         """Assigns the session a new session ID (data carries over).  This
         should be called whenever a user authenticates to prevent session
-        fixation attacks."""
+        fixation attacks.
+
+        ``expiration_ts`` - The UNIX timestamp the session will expire at. If
+        omitted, the session expiration time will not be changed.
+        """
         if self.sid:
             self.ensure_data_loaded()  # ensure we have the data before we delete it
-            self.__set_sid(self.__make_sid(expiration))
+            if expiration_ts is None:
+                expiration_ts = self.get_expiration()
+            self.__set_sid(self.__make_sid(expiration_ts))
             self.dirty = True  # ensure the data is written to the new session
 
-    def start(self, expiration=None):
+    def start(self, expiration_ts=None):
         """Starts a new session.  expiration specifies when it will expire.  If
         expiration is not specified, then self.lifetime will used to
         determine the expiration date.
 
         Normally this method does not need to be called directly - a session is
         automatically started when the first value is added to the session.
+
+        ``expiration_ts`` - The UNIX timestamp the session will expire at. If
+        omitted, the session will expire after the default ``lifetime`` has past
+        (as specified in ``SessionMiddleware``).
         """
         self.dirty = True
         self.data = {}
-        self.__set_sid(self.__make_sid(expiration), True)
+        self.__set_sid(self.__make_sid(expiration_ts), True)
 
     def terminate(self, clear_data=True):
         """Deletes the session and its data, and expires the user's cookie."""
