@@ -269,7 +269,8 @@ class SessionTester(object):
         self.ss.sid = ANY_SID
         self.dirty = True
         self.__set_in_mc_db_to_true_if_ok()
-        self.check_expir = expiration_ts
+        if expiration_ts:
+            self.check_expir = int(expiration_ts)
 
     # mocks for all the 'public' methods on Session
     @session_method
@@ -305,8 +306,8 @@ class SessionTester(object):
             self.dirty = True
 
     @session_method
-    def start(self, expiration=None):
-        self.__start(expiration)
+    def start(self, expiration_ts=None):
+        self.__start(expiration_ts)
 
     @session_method
     def terminate(self, clear_data=True):
