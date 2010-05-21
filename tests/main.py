@@ -116,6 +116,12 @@ class RPCHandler(webapp.RequestHandler):
                 return self.error(500)
         self.request.environ['test_outputs'] = outputs
 
+class GetSession(webapp.RequestHandler):
+    def get(self):
+        s = Session(sid=self.request.get('sid'), cookie_key='dontcare')
+        s.ensure_data_loaded()
+        self.response.out.write(b64encode(pickle.dumps(s.data)))
+
 class TestingMiddleware(object):
     """Dumps session state and environ['test_outputs'] into the response if the
     'test_outputs' key is set.  This middleware should wrap the sessions
@@ -148,6 +154,7 @@ def make_application(**kwargs):
     app = webapp.WSGIApplication([('/',               RPCHandler),
                                   ('/flush_memcache', FlushMemcache),
                                   ('/cleanup',        CleanupExpiredSessions),
+                                  ('/get_by_sid',     GetSession)
                                   ], debug=True)
     return TestingMiddleware(SessionMiddleware(app, **kwargs))
 
