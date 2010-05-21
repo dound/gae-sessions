@@ -64,6 +64,7 @@ class Session(object):
 
         if sid:
             self.__set_sid(sid, False)
+            self.data = None
         else:
             self.__read_cookie()
 
