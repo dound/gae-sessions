@@ -11,6 +11,12 @@ from gaesessions import get_current_session, Session, SessionMiddleware, Session
 logger = logging.getLogger('SERVER')
 logger.setLevel(logging.DEBUG)
 
+def trim_output_str(s, max_len=512):
+    if len(s) > max_len:
+        return s[:max_len] + '...'
+    else:
+        return s
+
 class TestModel(db.Model):
     s = db.StringProperty()
     i = db.IntegerProperty()
@@ -113,7 +119,7 @@ class RPCHandler(webapp.RequestHandler):
         except Exception, e:
             logger.error('failed to unpickle RPCs: %s' % e)
             return self.error(500)
-        logger.info("rpcs: %s" % rpcs)
+        logger.info("rpcs: %s" % trim_output_str(str(rpcs)))
 
         # TODO: apply the API statuses; remember to unapply before returning too
 
@@ -127,9 +133,9 @@ class RPCHandler(webapp.RequestHandler):
                 except Exception, e:
                     output = '%s-%s' % (type(e), e)
                 outputs.append(output)
-                logger.info('%s(%s, %s) => %s (type:%s)' % (fname, args, kwargs, output, type(output)))
+                logger.info(trim_output_str('%s(%s, %s) => %s (type:%s)' % (fname, args, kwargs, output, type(output))))
             except Exception, e:
-                logger.error('failed to execute RPC: %s(session, *%s, **%s) - %s' % (fname,args,kwargs,e))
+                logger.error(trim_output_str('failed to execute RPC: %s(session, *%s, **%s) - %s' % (fname,args,kwargs,e)))
                 return self.error(500)
         self.request.environ['test_outputs'] = outputs
         logger.info('END OF REQUEST HANDLER')

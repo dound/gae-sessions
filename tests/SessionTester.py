@@ -4,7 +4,7 @@ from nose.tools import assert_equal
 import pickle
 import time
 from webtest import TestApp
-from main import DEFAULT_COOKIE_KEY, make_application, SessionState
+from main import DEFAULT_COOKIE_KEY, make_application, SessionState, trim_output_str
 from gaesessions import Session, SID_LEN, SIG_LEN
 
 logging.getLogger().name = 'seslib'  # root logger is only used by gae-sessions itself
@@ -29,7 +29,7 @@ def session_method(f):
             output = '%s-%s' % (type(e), e)
             caught_exception = e
         myself.outputs.append(output)
-        logger.info('rpc enqueud: %s(%s, %s)' % (f.__name__,args[1:],kwargs))
+        logger.info(trim_output_str('rpc enqueud: %s(%s, %s)' % (f.__name__,args[1:],kwargs)))
         if caught_exception:
             raise caught_exception
         else:
@@ -146,7 +146,7 @@ class SessionTester(object):
         # like the real thing, call save() at the end of a request
         self.save()
 
-        logger.info('Running request: rpcs=%s' % self.rpcs)
+        logger.info(trim_output_str('Running request: rpcs=%s' % self.rpcs))
         self.app.set_client(self)
         resp = self.app.post('/', dict(rpcs=b64encode(pickle.dumps(self.rpcs)), api_statuses=b64encode(pickle.dumps(self.api_statuses))))
         assert resp.status[:3] == '200', 'did not get code 200 back: %s' % resp
@@ -165,7 +165,7 @@ class SessionTester(object):
         for i in xrange(len(remote_outputs)):
             l, r = self.outputs[i], remote_outputs[i]
             assert l==r, 'output for rpc #%d (%s) does not match:\n\tlocal:  %s\n\tremote: %s' % (i, self.rpcs[i], l, r)
-        logger.info('state (local and remote): %s' % self.ss)
+        logger.info('state (local and remote): %s' % trim_output_str(str(self.ss)))
 
         # extra checks we sometimes need to do
         if self.check_expir:
