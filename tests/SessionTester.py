@@ -49,6 +49,12 @@ class AppWithMultipleClients(TestApp):
         self.current_client = client
         self.cookies = self.client_cookies.get(client, {})
 
+    def get_cookies(self, client):
+        return self.client_cookies.get(client, {})
+
+    def set_cookies(self, client, cookies):
+        self.client_cookies[client] = cookies
+
     def do_request(self, req, status, expect_errors):
         ret = super(AppWithMultipleClients, self).do_request(req, status, expect_errors)
         self.client_cookies[self.current_client] = self.cookies
@@ -95,6 +101,12 @@ class SessionTester(object):
         self.ok_if_in_mc_remotely = False
         self.ok_if_in_db_remotely = False
         self.data_should_be_in_cookie = False
+
+    def get_cookies(self):
+        return self.app.get_cookies(self)
+
+    def set_cookies(self, cookies):
+        return self.app.set_cookies(self, cookies)
 
     def new_session_state(self):
         self.ss = SessionState(None, {}, False, False, False)

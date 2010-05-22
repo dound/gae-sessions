@@ -1,4 +1,4 @@
-from base64 import b64decode
+from base64 import b64decode, b64encode
 import logging
 import pickle
 import time
@@ -7,15 +7,14 @@ from google.appengine.ext import db
 from nose.tools import assert_equal, assert_not_equal, assert_raises
 
 from main import make_entity
-from gaesessions import SessionMiddleware
+from gaesessions import COOKIE_NAME_PREFIX, SessionMiddleware, SID_LEN, SIG_LEN
 from SessionTester import SessionTester
 
-# Tests to do (each on a variety of configurations):
-#   0) Correct session usage
+# Tests (each on a variety of configurations):
+#   0) Correct session usage and memcache loss
 #   1) Session expiration
-#   2) Invalid method usage
-#   3) Memcache loss
-#   4) Bad cookie data (e.g., sig invalid due to data changed by user)
+#   2) Bad cookie data (e.g., sig invalid due to data changed by user)
+#   3) API downtime (future work)
 
 logger = logging.getLogger('TESTS ')
 logger.setLevel(logging.DEBUG)
@@ -31,8 +30,7 @@ def test_sessions():
     """Run a variety of tests on various session configurations (includes
     whether or not to use the datastore and the cookie only threshold).
     """
-    CHECKS = (check_correct_usage, check_expiration)
-    # not yet written: check_invalid_usage, check_memcache_loss, check_bad_cookie)
+    CHECKS = (check_correct_usage, check_expiration, check_bad_cookie)
     for no_datastore in (False, True):
         if no_datastore:
             test_db = 'without'
@@ -268,6 +266,37 @@ def check_expiration(no_datastore, cookie_only_threshold):
     # check that after cleanup only unexpired ones are left in the db
     num_left = num_to_start - len(sessions_which_expire_shortly)
     expected_num_sessions_in_db_if_db_used(num_to_start-1, num_left)  # -1 b/c we manually expired one above
+
+def check_bad_cookie(no_datastore, cookie_only_threshold):
+    for test in (check_bad_sid, check_manip_cookie_data, check_bogus_data, check_bogus_data2):
+        logger.info('preparing for %s' % test.__name__)
+        st = SessionTester(no_datastore=no_datastore, cookie_only_threshold=cookie_only_threshold)
+        st.start_request()
+        st['x'] = 7
+        st.finish_request_and_check()
+        logger.info('running %s' % test.__name__)
+        test(st, st.get_cookies())
+        st.new_session_state()
+        st.start_request()
+        assert not st.is_active()  # due to invalid sig
+        st.finish_request_and_check()
+
+def check_bad_sid(st, cookies):
+    cv = cookies[COOKIE_NAME_PREFIX + '00']
+    sid = cv[SIG_LEN:SIG_LEN+SID_LEN]
+    bad_sid = ''.join(reversed(sid))
+    cookies[COOKIE_NAME_PREFIX + '00'] = cv[:SIG_LEN]+bad_sid+cv[SID_LEN+SIG_LEN:]
+
+def check_manip_cookie_data(st, cookies):
+    cv = cookies[COOKIE_NAME_PREFIX + '00']
+    cookies[COOKIE_NAME_PREFIX + '00'] = cv[:SIG_LEN+SID_LEN] + b64encode(pickle.dumps(dict(evil='fail'),2))
+
+def check_bogus_data(st, cookies):
+    cv = cookies[COOKIE_NAME_PREFIX + '00']
+    cookies[COOKIE_NAME_PREFIX + '00'] = cv[:SIG_LEN+SID_LEN] + "==34@#K$$;))" # invalid "base64"
+
+def check_bogus_data2(st, cookies):
+    cookies[COOKIE_NAME_PREFIX + '00'] = "blah"
 
 def main():
     """Run nose tests and generate a coverage report."""
