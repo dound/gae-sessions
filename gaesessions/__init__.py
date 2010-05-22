@@ -288,6 +288,9 @@ class Session(object):
             self.cookie_data = pdump
             if not persist_even_if_using_cookie:
                 return
+        elif self.cookie_keys:
+            # latest data will only be in the backend, so expire data cookies we set
+            self.cookie_data = ''
 
         memcache.set(self.sid, pdump)  # may fail if memcache is down
 
