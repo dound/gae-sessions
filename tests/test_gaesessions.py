@@ -340,6 +340,20 @@ def check_bogus_data(st, cookies):
 def check_bogus_data2(st, cookies):
     cookies[COOKIE_NAME_PREFIX + '00'] = "blah"
 
+def test_cookies_deleted_when_session_storage_moved_to_backend():
+    logger.info("make a session with data stored in the cookie")
+    st = SessionTester(no_datastore=False, cookie_only_threshold=14*1024)
+    st.start_request()
+    st['junk'] = 'x'  * 9000  # fits in the cookie
+    st.finish_request_and_check()
+    assert not st.ss.in_mc
+
+    logger.info("force the session to be stored on the backend (too big for app engine headers)")
+    st.start_request()
+    st['junk'] = 'x'  * 16000  # does NOT fit in the cookie
+    st.finish_request_and_check()
+    assert st.ss.in_mc
+
 def main():
     """Run nose tests and generate a coverage report."""
     import coverage
