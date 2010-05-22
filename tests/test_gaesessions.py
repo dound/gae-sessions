@@ -30,7 +30,7 @@ def test_sessions():
     """Run a variety of tests on various session configurations (includes
     whether or not to use the datastore and the cookie only threshold).
     """
-    CHECKS = (check_correct_usage, check_expiration, check_bad_cookie)
+    CHECKS = (check_correct_usage, check_expiration, check_bad_cookie, check_various_session_sizes)
     for no_datastore in (False, True):
         if no_datastore:
             test_db = 'without'
@@ -249,6 +249,33 @@ def check_correct_usage(no_datastore, cookie_only_threshold):
     st.set_quick('msg', 'hello')
     st['z'] = 99
     st.finish_request_and_check()
+
+MAX_COOKIE_ONLY_SIZE_TO_TEST = 59 * 1024
+def check_various_session_sizes(no_datastore, cookie_only_threshold):
+    for log2_data_sz_bytes in xrange(10,22):
+        if log2_data_sz_bytes == 20:
+            # maximum data size is 1MB *including* overhead, so just try up to
+            # about the maximum size not including overhead (overhead based on,
+            # actual data but for this test it looks like about 5%).
+            data_sz_bytes = 2**log2_data_sz_bytes - 50*1024
+        elif log2_data_sz_bytes == 16 and cookie_only_threshold>2**15:
+            # the minimums recommended for cookie storage is 20 cookies of 4KB
+            # each.  64KB of data plus overhead is just a notch above this, so
+            # shrink this test just a tad for cookie-only sessions to get about
+            # 20 full cookies  - about 59KB of raw data for this test.
+            data_sz_bytes = MAX_COOKIE_ONLY_SIZE_TO_TEST
+        else:
+            data_sz_bytes = 2**log2_data_sz_bytes
+        logging.info("trying session with %dB (~%.1fKB) (before encoding)" % (data_sz_bytes, data_sz_bytes/1024.0))
+
+        if cookie_only_threshold<data_sz_bytes or data_sz_bytes<=MAX_COOKIE_ONLY_SIZE_TO_TEST:
+            st = SessionTester(no_datastore=no_datastore, cookie_only_threshold=cookie_only_threshold)
+            st.start_request()
+            st['v'] = 'x' * data_sz_bytes
+            expect_fail = (log2_data_sz_bytes >= 21)
+            st.finish_request_and_check(expect_failure=expect_fail)
+        else:
+            logging.info("skipped - too big for cookie-only data")
 
 def check_expiration(no_datastore, cookie_only_threshold):
     st = SessionTester(no_datastore=no_datastore, cookie_only_threshold=cookie_only_threshold)

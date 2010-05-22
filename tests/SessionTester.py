@@ -134,7 +134,7 @@ class SessionTester(object):
         if self._get_expiration() <= int(time.time()):
             self.new_session_state()
 
-    def finish_request_and_check(self):
+    def finish_request_and_check(self, expect_failure=False):
         """Executes the set of RPCs requested since start_request() was called
         and checks to see if the response is successful and matches the
         expected Session state.  Outputs of each RPC are also compared with the
@@ -158,6 +158,13 @@ class SessionTester(object):
             self.ss.in_mc = remote_ss.in_mc
         if self.ss.sid == ANY_SID:
             self.ss.sid = remote_ss.sid
+
+        if expect_failure:
+            assert remote_ss.in_db is False, "failure expected: data should not be in the datastore"
+            assert remote_ss.in_mc is False, "failure expected: data should not be in memcache"
+            self.api_statuses = self.outputs = self.rpcs = None
+            logger.info('Request completed (expected failure and got it)')
+            return
 
         assert self.ss == remote_ss, 'mismatch b/w local and remote states:\n\tlocal:  %s\n\tremote: %s' % (self.ss, remote_ss)
         assert len(remote_outputs)==len(self.outputs), 'internal test error: number outputs should be the same'
