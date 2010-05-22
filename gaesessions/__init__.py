@@ -150,6 +150,8 @@ class Session(object):
         if not expire_ts:
             expire_dt = datetime.datetime.now() + self.lifetime
             expire_ts = int(time.mktime((expire_dt).timetuple()))
+        else:
+            expire_ts = int(expire_ts)
         return str(expire_ts) + '_' + hashlib.md5(os.urandom(16)).hexdigest()
 
     @staticmethod
