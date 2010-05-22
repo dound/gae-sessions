@@ -127,11 +127,12 @@ class RPCHandler(webapp.RequestHandler):
                 except Exception, e:
                     output = '%s-%s' % (type(e), e)
                 outputs.append(output)
-                logger.info('%s(%s, %s) => %s' % (f, args, kwargs, output))
+                logger.info('%s(%s, %s) => %s (type:%s)' % (fname, args, kwargs, output, type(output)))
             except Exception, e:
-                logger.error('failed to execute RPC: %s(session, *%s, **%s) - %s' % (f,args,kwargs,e))
+                logger.error('failed to execute RPC: %s(session, *%s, **%s) - %s' % (fname,args,kwargs,e))
                 return self.error(500)
         self.request.environ['test_outputs'] = outputs
+        logger.info('END OF REQUEST HANDLER')
 
 class GetSession(webapp.RequestHandler):
     def get(self):
