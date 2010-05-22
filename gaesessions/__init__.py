@@ -122,7 +122,7 @@ class Session(object):
         cookies = [COOKIE_FMT % (i, cv[i*m:i*m+m], ed) for i in xrange(num_cookies)]
 
         # expire old cookies which aren't needed anymore
-        old_cookies = xrange(num_cookies+1, len(self.cookie_keys))
+        old_cookies = xrange(num_cookies, len(self.cookie_keys))
         key = COOKIE_NAME_PREFIX + '%02d'
         cookies_to_ax = [EXPIRE_COOKIE_FMT % (key % i) for i in old_cookies]
         return cookies + cookies_to_ax
