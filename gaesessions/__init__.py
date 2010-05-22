@@ -99,7 +99,7 @@ class Session(object):
                 else:
                     self.data = None  # data is in memcache/db: load it on-demand
             else:
-                logging.warn('cookie with invalid sig received from %s: %s' % (os.environ.get('REMOTE_ADDR'), pdump))
+                logging.warn('cookie with invalid sig received from %s: %s' % (os.environ.get('REMOTE_ADDR'), b64pdump))
         except (CookieError, KeyError, IndexError, TypeError):
             # there is no cookie (i.e., no session) or the cookie is invalid
             self.terminate(False)
@@ -261,7 +261,9 @@ class Session(object):
         self.data = self.__decode_data(pdump)
 
     def save(self, persist_even_if_using_cookie=False):
-        """Saves the data associated with this session.
+        """Saves the data associated with this session IF any changes have been
+        made (specifically, if any mutator methods like __setitem__ or the like
+        is called).
 
         If the data is small enough it will be sent back to the user in a cookie
         instead of using memcache and the datastore.  If `persist_even_if_using_cookie`
