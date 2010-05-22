@@ -157,6 +157,21 @@ def check_correct_usage(no_datastore, cookie_only_threshold):
     st.finish_request_and_check()
     expected_num_sessions_in_db_if_db_used(2)
 
+    minitest_divider("regenerating SID test w/new expiration time")
+    initial_sid = st.ss.sid
+    st.start_request()
+    initial_expir = st.get_expiration()
+    new_expir = initial_expir + 120  # something new
+    st.regenerate_id(expiration_ts=new_expir)
+    assert_equal(st['x'], 7, "data should not be affected")
+    st.finish_request_and_check()
+    assert_not_equal(initial_sid, st.ss.sid, "regenerated sid should be different")
+    assert_equal(new_expir, st._get_expiration(), "expiration should be what we asked for")
+    st.start_request()
+    assert_equal(st['x'], 7, "data should not be affected")
+    st.finish_request_and_check()
+    expected_num_sessions_in_db_if_db_used(2)
+
     minitest_divider("check basic dictionary operations")
     st.start_request()
     st['s'] = 'aaa'
