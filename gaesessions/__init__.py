@@ -384,6 +384,10 @@ class Session(object):
 class SessionMiddleware(object):
     """WSGI middleware that adds session support.
 
+    ``cookie_key`` - A key used to secure cookies so users cannot modify their
+    content.  Keys should be at least 32 bytes (RFC2104).  Tip: generate your
+    key using ``os.urandom(64)``.
+
     ``lifetime`` - ``datetime.timedelta`` that specifies how long a session may last.  Defaults to 7 days.
 
     ``no_datastore`` - By default all writes also go to the datastore in case
@@ -394,19 +398,17 @@ class SessionMiddleware(object):
     threshold, then session data is kept only in a secure cookie.  This avoids
     memcache/datastore latency which is critical for small sessions.  Larger
     sessions are kept in memcache+datastore instead.  Defaults to **TBD**.
-
-    ``cookie_key`` - A key used to secure cookies so users cannot modify their
-    content.  Keys should be at least 32 bytes (RFC2104).  Tip: generate your
-    key using ``os.urandom(64)``.  Required if ``cookie_only_threshold > 0``.
     """
-    def __init__(self, app, lifetime=DEFAULT_LIFETIME, no_datastore=False, cookie_only_threshold=DEFAULT_COOKIE_ONLY_THRESH, cookie_key=None):
+    def __init__(self, app, cookie_key, lifetime=DEFAULT_LIFETIME, no_datastore=False, cookie_only_threshold=DEFAULT_COOKIE_ONLY_THRESH):
         self.app = app
         self.lifetime = lifetime
         self.no_datastore = no_datastore
         self.cookie_only_thresh = cookie_only_threshold
         self.cookie_key = cookie_key
-        if self.cookie_only_thresh > 0 and not self.cookie_key:
+        if not self.cookie_key:
             raise ValueError("cookie_key MUST be specified (unless you set cookie_only_threshold to 0)")
+        if len(self.cookie_key) < 32:
+            raise ValueError("RFC2104 recommends you use at least a 32 character key.  Try os.urandom(64) to make a key.")
 
     def __call__(self, environ, start_response):
         # initialize a session for the current user
