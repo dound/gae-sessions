@@ -25,7 +25,7 @@ MAX_COOKIE_LEN = 4096
 EXPIRE_COOKIE_FMT = ' %s=; expires=Wed, 31-Dec-1969 19:00:00 PST; Path=' + COOKIE_PATH
 COOKIE_FMT = ' ' + COOKIE_NAME_PREFIX + '%02d="%s"; expires=%s; Path=' + COOKIE_PATH
 COOKIE_DATE_FMT = '%a, %d-%b-%Y %H:%M:%S PST'
-COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + 29  # 29=date len
+COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + 29 + 150  # 29=date len, 150=safety margin (e.g., in case browser uses 4000 instead of 4096)
 MAX_DATA_PER_COOKIE = MAX_COOKIE_LEN - COOKIE_OVERHEAD
 
 _current_session = None
