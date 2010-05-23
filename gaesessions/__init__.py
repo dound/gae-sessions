@@ -15,7 +15,7 @@ from google.appengine.ext import db
 # Configurable cookie options
 COOKIE_NAME_PREFIX = "DgU"  # identifies a cookie as being one used by gae-sessions (so you can set cookies too)
 COOKIE_PATH = "/"
-DEFAULT_COOKIE_ONLY_THRESH = 2**30  # TODO: determine a good value for this
+DEFAULT_COOKIE_ONLY_THRESH = 10240  # 10KB: GAE only allows ~16000B in HTTP header - leave ~6KB for other info
 DEFAULT_LIFETIME = datetime.timedelta(days=7)
 
 # constants
@@ -25,7 +25,7 @@ MAX_COOKIE_LEN = 4096
 EXPIRE_COOKIE_FMT = ' %s=; expires=Wed, 31-Dec-1969 19:00:00 PST; Path=' + COOKIE_PATH
 COOKIE_FMT = ' ' + COOKIE_NAME_PREFIX + '%02d="%s"; expires=%s; Path=' + COOKIE_PATH
 COOKIE_DATE_FMT = '%a, %d-%b-%Y %H:%M:%S PST'
-COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + 29  # 29=date len
+COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + 29 + 150  # 29=date len, 150=safety margin (e.g., in case browser uses 4000 instead of 4096)
 MAX_DATA_PER_COOKIE = MAX_COOKIE_LEN - COOKIE_OVERHEAD
 
 _current_session = None
@@ -99,7 +99,7 @@ class Session(object):
                 else:
                     self.data = None  # data is in memcache/db: load it on-demand
             else:
-                logging.warn('cookie with invalid sig received from %s: %s' % (os.environ.get('REMOTE_ADDR'), pdump))
+                logging.warn('cookie with invalid sig received from %s: %s' % (os.environ.get('REMOTE_ADDR'), b64pdump))
         except (CookieError, KeyError, IndexError, TypeError):
             # there is no cookie (i.e., no session) or the cookie is invalid
             self.terminate(False)
@@ -122,7 +122,7 @@ class Session(object):
         cookies = [COOKIE_FMT % (i, cv[i*m:i*m+m], ed) for i in xrange(num_cookies)]
 
         # expire old cookies which aren't needed anymore
-        old_cookies = xrange(num_cookies+1, len(self.cookie_keys))
+        old_cookies = xrange(num_cookies, len(self.cookie_keys))
         key = COOKIE_NAME_PREFIX + '%02d'
         cookies_to_ax = [EXPIRE_COOKIE_FMT % (key % i) for i in old_cookies]
         return cookies + cookies_to_ax
@@ -150,6 +150,8 @@ class Session(object):
         if not expire_ts:
             expire_dt = datetime.datetime.now() + self.lifetime
             expire_ts = int(time.mktime((expire_dt).timetuple()))
+        else:
+            expire_ts = int(expire_ts)
         return str(expire_ts) + '_' + hashlib.md5(os.urandom(16)).hexdigest()
 
     @staticmethod
@@ -259,7 +261,9 @@ class Session(object):
         self.data = self.__decode_data(pdump)
 
     def save(self, persist_even_if_using_cookie=False):
-        """Saves the data associated with this session.
+        """Saves the data associated with this session IF any changes have been
+        made (specifically, if any mutator methods like __setitem__ or the like
+        is called).
 
         If the data is small enough it will be sent back to the user in a cookie
         instead of using memcache and the datastore.  If `persist_even_if_using_cookie`
@@ -284,6 +288,9 @@ class Session(object):
             self.cookie_data = pdump
             if not persist_even_if_using_cookie:
                 return
+        elif self.cookie_keys:
+            # latest data will only be in the backend, so expire data cookies we set
+            self.cookie_data = ''
 
         memcache.set(self.sid, pdump)  # may fail if memcache is down
 
@@ -377,6 +384,10 @@ class Session(object):
 class SessionMiddleware(object):
     """WSGI middleware that adds session support.
 
+    ``cookie_key`` - A key used to secure cookies so users cannot modify their
+    content.  Keys should be at least 32 bytes (RFC2104).  Tip: generate your
+    key using ``os.urandom(64)``.
+
     ``lifetime`` - ``datetime.timedelta`` that specifies how long a session may last.  Defaults to 7 days.
 
     ``no_datastore`` - By default all writes also go to the datastore in case
@@ -387,19 +398,17 @@ class SessionMiddleware(object):
     threshold, then session data is kept only in a secure cookie.  This avoids
     memcache/datastore latency which is critical for small sessions.  Larger
     sessions are kept in memcache+datastore instead.  Defaults to **TBD**.
-
-    ``cookie_key`` - A key used to secure cookies so users cannot modify their
-    content.  Keys should be at least 32 bytes (RFC2104).  Tip: generate your
-    key using ``os.urandom(64)``.  Required if ``cookie_only_threshold > 0``.
     """
-    def __init__(self, app, lifetime=DEFAULT_LIFETIME, no_datastore=False, cookie_only_threshold=DEFAULT_COOKIE_ONLY_THRESH, cookie_key=None):
+    def __init__(self, app, cookie_key, lifetime=DEFAULT_LIFETIME, no_datastore=False, cookie_only_threshold=DEFAULT_COOKIE_ONLY_THRESH):
         self.app = app
         self.lifetime = lifetime
         self.no_datastore = no_datastore
         self.cookie_only_thresh = cookie_only_threshold
         self.cookie_key = cookie_key
-        if self.cookie_only_thresh > 0 and not self.cookie_key:
+        if not self.cookie_key:
             raise ValueError("cookie_key MUST be specified (unless you set cookie_only_threshold to 0)")
+        if len(self.cookie_key) < 32:
+            raise ValueError("RFC2104 recommends you use at least a 32 character key.  Try os.urandom(64) to make a key.")
 
     def __call__(self, environ, start_response):
         # initialize a session for the current user
