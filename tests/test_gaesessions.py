@@ -21,10 +21,11 @@ logger.setLevel(logging.DEBUG)
 
 def test_middleware():
     """Tests that the middleware requires cookie_key when it should."""
-    logging.debug("cookie_key is required if there is a cookie_only_threshold")
-    assert_raises(ValueError, SessionMiddleware, None, cookie_only_threshold=10)
-    SessionMiddleware(None, cookie_only_threshold=10, cookie_key='blah')
-    SessionMiddleware(None, cookie_only_threshold=0)
+    logging.debug("cookie_key is required and needs to be reasonably long")
+    assert_raises(ValueError, SessionMiddleware, None, None)
+    assert_raises(ValueError, SessionMiddleware, None, cookie_key='blah')
+    SessionMiddleware(None, cookie_only_threshold=10, cookie_key='blah'*8)
+    SessionMiddleware(None, cookie_only_threshold=0, cookie_key="still need a key"*4)
 
 def test_sessions():
     """Run a variety of tests on various session configurations (includes
