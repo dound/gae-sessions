@@ -1,21 +1,19 @@
-GAE Sessions
+gae-sessions
 =
 
-NOTE: This is beta software.  If you discover a problem, please report it on the
-[gae-sessions issues page](http://github.com/dound/gae-sessions/issues).
-
+gae-sessions is a sessions library for the Python runtime on Google App Engine
+for ALL session sizes.  It is extremely fast, lightweight (one file), and easy
+to use.
 
 Advantages:
 -
  * __Lightweight__: One short file and references to a handful of standard libs.
- * __High Availability__ is ensured by persisting all changes to the datastore.
-     - If you don't need this, you can use <code>set\_quick()</code> and
-       <code>pop\_quick()</code> and data will only be changed in memcache.
  * __Fast and Efficient__
      - [__Orders of magnitude
        faster__](http://wiki.github.com/dound/gae-sessions/comparison-with-alternative-libraries)
        than other session libraries for app engine.
-     - Uses memcache to minimize read times.
+     - Uses secure cookies for small sessions to minimize overhead.
+     - Uses memcache to minimize read times for larger sessions.
      - Minimizes gets() and puts() by compactly storing all values in one field.
      - Automatically converts db.Model instances to protobufs for more
        efficient storage and CPU usage.
@@ -23,6 +21,11 @@ Advantages:
        and *only once per request* (when the response is being sent).
      - Session data is lazily loaded - if you don't use the session for a
        request, zero overhead is added.
+ * __Secure__: Safe against session hijacking, session fixation, and tampering
+   with session data.
+ * __High Availability__ is ensured by persisting changes to the datastore.
+     - If you don't need this, you can use <code>set\_quick()</code> and
+       <code>pop\_quick()</code> and data will only be changed in memcache.
  * __Simple to Use__
      - Easily installed as WSGI Middleware.
      - Session values are accessed via a dictionary interface.
@@ -34,8 +37,6 @@ Advantages:
 Limitations:
 -
   * Limited to 1MB of data in a session.  (to fit in a single memcache entry)
-  * No checks for User-Agent or IP consistency.
-  * I'm sure you'll have lots to add to this list :).
 
 
 Installation
@@ -54,15 +55,27 @@ directory, and put the following in it:
 
     from gaesessions import SessionMiddleware
     def webapp_add_wsgi_middleware(app):
-        app = SessionMiddleware(app)
+        app = SessionMiddleware(app, cookie_key="put something random and long here")
         return app
 
+Small sessions are stored in __secure__ cookies.  The required `cookie_key`
+parameter is used to sign cookies with an HMAC-SHA256 signature.  This enables
+gae-sessions to notice if any change is made to the data by the client (in which
+case it is discarded).  The data itself is stored as a base64-encoded, pickled
+Python dictionary - and so __tech savvy users could view the values__ (though
+they cannot change them).  If this is an issue for your application, then
+disable the use of cookies for small sessions by calling SessionMiddleware with
+`cookie_only_threshold=0`.
+
 The default session lifetime is 7 days.  You may configure how long a session
-lasts like this: `SessionMiddleware(app, lifetime=datetime.timedelta(hours=2))`.
+lasts by calling `SessionMiddleware` with a `lifetime` parameter, e.g.,
+`lifetime=datetime.timedelta(hours=2))`.
 
 If you want ALL of your changes persisted ONLY to memcache, then create the
-middleware like this: `SessionMiddleware(app, no_datastore=True)`.  This will
-result in faster writes but your session data might be lost at any time!
+middleware with `no_datastore=True`.  This will result in faster writes but your
+session data might be lost at any time!  If cookie-only sessions have not been
+disabled, then small sessions will still be stored in cookies (this is faster
+than memcache).
 
 You will also want to create a cronjob to periodically remove expired sessions
 from the datastore.  You can find the [example
@@ -104,7 +117,10 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-17 (v0.9-beta)  
+_Updated_: 2010-May-22 (v1.0)  
 _License_: Apache License Version 2.0
 
-For more information, please visit the [gae-sessions webpage](http://github.com/dound/gae-sessions/).
+For more information, please visit the [gae-sessions webpage](http://wiki.github.com/dound/gae-sessions/).
+
+If you discover a problem, please report it on the
+[gae-sessions issues page](http://github.com/dound/gae-sessions/issues).
