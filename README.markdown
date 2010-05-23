@@ -7,7 +7,7 @@ to use.
 
 Advantages:
 -
- * __Lightweight__: One short file and references to a handful of standard libs.
+ * __Lightweight__: One short file and references to a handful of built-in Python libraries.
  * __Fast and Efficient__
      - [__Orders of magnitude
        faster__](http://wiki.github.com/dound/gae-sessions/comparison-with-alternative-libraries)
@@ -21,7 +21,7 @@ Advantages:
        and *only once per request* (when the response is being sent).
      - Session data is lazily loaded - if you don't use the session for a
        request, zero overhead is added.
- * __Secure__: Safe against session hijacking, session fixation, and tampering
+ * __Secure__: Protected against session hijacking, session fixation, and tampering
    with session data.
  * __High Availability__ is ensured by persisting changes to the datastore.
      - If you don't need this, you can use <code>set\_quick()</code> and
@@ -55,16 +55,16 @@ directory, and put the following in it:
 
     from gaesessions import SessionMiddleware
     def webapp_add_wsgi_middleware(app):
-        app = SessionMiddleware(app, cookie_key="put something random and long here")
+        app = SessionMiddleware(app, cookie_key="a random and long string")
         return app
 
 Small sessions are stored in __secure__ cookies.  The required `cookie_key`
 parameter is used to sign cookies with an HMAC-SHA256 signature.  This enables
 gae-sessions to notice if any change is made to the data by the client (in which
 case it is discarded).  The data itself is stored as a base64-encoded, pickled
-Python dictionary - and so __tech savvy users could view the values__ (though
-they cannot change them).  If this is an issue for your application, then
-disable the use of cookies for small sessions by calling SessionMiddleware with
+Python dictionary - *tech savvy users could view the values* (though they cannot
+change them).  If this is an issue for your application, then disable the use of
+cookies for storing data for small sessions by calling SessionMiddleware with
 `cookie_only_threshold=0`.
 
 The default session lifetime is 7 days.  You may configure how long a session
@@ -81,13 +81,14 @@ You will also want to create a cronjob to periodically remove expired sessions
 from the datastore.  You can find the [example
 cronjob](http://github.com/dound/gae-sessions/tree/master/demo/cron.yaml) and
 the [cleanup handler](http://github.com/dound/gae-sessions/tree/master/demo/cleanup_sessions.py)
-it calls in the [demo].
+it calls in the [demo](http://github.com/dound/gae-sessions/tree/master/demo/).
 
 
 Example Usage
 -
 
-There is a complete demo application in the 'demo' folder - just launch it with
+There is a complete demo application in the [demo
+folder](http://github.com/dound/gae-sessions/tree/master/demo/) - just launch it with
 the development server (or upload it to GAE) and check it out.  This demo uses
 OpenID via [RPX](http://www.rpxnow.com) for user authentication.  There's
 another demo in the 'demo-with-google-logins' folder which uses Google Accounts
