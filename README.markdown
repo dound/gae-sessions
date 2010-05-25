@@ -50,13 +50,20 @@ gae-sessions includes WSGI middleware to make it easy to integrate into your app
 webapp framework, or any other framework that calls the
 [run_wsgi_app](http://code.google.com/appengine/docs/python/tools/webapp/utilmodule.html)
 function, you can use App Engine's configuration framework to install
-gae-sessions.  Create a file called "appengine_config.py" in your app's root
+gae-sessions.  Create a file called `appengine_config.py` in your app's root
 directory, and put the following in it:
 
     from gaesessions import SessionMiddleware
     def webapp_add_wsgi_middleware(app):
         app = SessionMiddleware(app, cookie_key="a random and long string")
         return app
+
+If you want to gae-sessions with Django, add
+<code>'gaesessions.DjangoSessionMiddleware'</code> to your list of
+<code>MIDDLEWARE_CLASSES</code> in your `settings.py` file.  To configure the
+Django middleware, modify the following line in `gaesessions/__init__.py`:
+
+    self.wrapped_wsgi_middleware = SessionMiddleware(fake_app, cookie_key='you MUST change this')
 
 Small sessions are stored in __secure__ cookies.  The required `cookie_key`
 parameter is used to sign cookies with an HMAC-SHA256 signature.  This enables
@@ -118,7 +125,7 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-22 (v1.0)  
+_Updated_: 2010-May-22 (v1.01)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://wiki.github.com/dound/gae-sessions/).
