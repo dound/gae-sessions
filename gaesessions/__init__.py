@@ -406,7 +406,7 @@ class SessionMiddleware(object):
         self.cookie_only_thresh = cookie_only_threshold
         self.cookie_key = cookie_key
         if not self.cookie_key:
-            raise ValueError("cookie_key MUST be specified (unless you set cookie_only_threshold to 0)")
+            raise ValueError("cookie_key MUST be specified")
         if len(self.cookie_key) < 32:
             raise ValueError("RFC2104 recommends you use at least a 32 character key.  Try os.urandom(64) to make a key.")
 
