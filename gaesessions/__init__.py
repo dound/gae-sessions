@@ -425,6 +425,29 @@ class SessionMiddleware(object):
         # let the app do its thing
         return self.app(environ, my_start_response)
 
+class DjangoSessionMiddleware(object):
+    """Django middleware that adds session support.  You must specify the
+    session configuration parameters by modifying the call to ``SessionMiddleware``
+    in ``DjangoSessionMiddleware.__init__()`` since Django cannot call an
+    initialization method with parameters.
+    """
+    def __init__(self):
+        fake_app = lambda environ, start_response : start_response
+        self.wrapped_wsgi_middleware = SessionMiddleware(fake_app, cookie_key='you MUST change this')
+        self.response_handler = None
+
+    def process_request(self, request):
+        self.response_handler = self.wrapped_wsgi_middleware(None, lambda status, headers, exc_info : headers)
+        request.session = get_current_session()  # for convenience
+
+    def process_response(self, request, response):
+        if self.response_handler:
+            session_headers = self.response_handler(None, [], None)
+            for k,v in session_headers:
+                response[k] = v
+            self.response_handler = None
+        return response
+
 def delete_expired_sessions():
     """Deletes expired sessions from the datastore.
     If there are more than 1000 expired sessions, only 1000 will be removed.
