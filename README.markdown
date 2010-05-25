@@ -60,8 +60,10 @@ directory, and put the following in it:
 
 If you want to gae-sessions with Django, add
 <code>'gaesessions.DjangoSessionMiddleware'</code> to your list of
-<code>MIDDLEWARE_CLASSES</code> in your `settings.py` file.  To configure the
-Django middleware, modify the following line in `gaesessions/__init__.py`:
+<code>MIDDLEWARE_CLASSES</code> in your `settings.py` file.  You can then access
+the session associated with the current request via the `request.session`
+variable.  To configure the Django middleware, modify the following line in
+`gaesessions/__init__.py`:
 
     self.wrapped_wsgi_middleware = SessionMiddleware(fake_app, cookie_key='you MUST change this')
 
