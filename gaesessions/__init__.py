@@ -397,7 +397,7 @@ class SessionMiddleware(object):
     ``cookie_only_threshold`` - A size in bytes.  If session data is less than this
     threshold, then session data is kept only in a secure cookie.  This avoids
     memcache/datastore latency which is critical for small sessions.  Larger
-    sessions are kept in memcache+datastore instead.  Defaults to **TBD**.
+    sessions are kept in memcache+datastore instead.  Defaults to 10KB.
     """
     def __init__(self, app, cookie_key, lifetime=DEFAULT_LIFETIME, no_datastore=False, cookie_only_threshold=DEFAULT_COOKIE_ONLY_THRESH):
         self.app = app
