@@ -127,7 +127,7 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-22 (v1.01)  
+_Updated_: 2010-May-22 (v1.02)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://wiki.github.com/dound/gae-sessions/).
