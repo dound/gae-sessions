@@ -450,14 +450,14 @@ class DjangoSessionMiddleware(object):
 
 def delete_expired_sessions():
     """Deletes expired sessions from the datastore.
-    If there are more than 1000 expired sessions, only 1000 will be removed.
+    If there are more than 500 expired sessions, only 500 will be removed.
     Returns True if all expired sessions have been removed.
     """
     now_str = unicode(int(time.time()))
     q = db.Query(SessionModel, keys_only=True)
     key = db.Key.from_path('SessionModel', now_str + u'\ufffd')
     q.filter('__key__ < ', key)
-    results = q.fetch(1000)
+    results = q.fetch(500)
     db.delete(results)
     logging.info('gae-sessions: deleted %d expired sessions from the datastore' % len(results))
-    return len(results)<1000
+    return len(results)<500
