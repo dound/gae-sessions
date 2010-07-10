@@ -386,7 +386,10 @@ class SessionMiddleware(object):
 
     ``cookie_key`` - A key used to secure cookies so users cannot modify their
     content.  Keys should be at least 32 bytes (RFC2104).  Tip: generate your
-    key using ``os.urandom(64)``.
+    key using ``os.urandom(64)`` but do this OFFLINE and copy/paste the output
+    into a string which you pass in as ``cookie_key``.  If you use ``os.urandom()``
+    to dynamically generate your key at runtime then any existing sessions will
+    become junk every time your app starts up!
 
     ``lifetime`` - ``datetime.timedelta`` that specifies how long a session may last.  Defaults to 7 days.
 
