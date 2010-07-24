@@ -21,8 +21,8 @@ Advantages:
        and *only once per request* (when the response is being sent).
      - Session data is lazily loaded - if you don't use the session for a
        request, zero overhead is added.
- * __Secure__: Protected against session hijacking, session fixation, and tampering
-   with session data.
+ * __Secure__: Protected against session hijacking, session fixation, tampering
+   with session data, and XSS attacks.
  * __High Availability__ is ensured by persisting changes to the datastore.
      - If you don't need this, you can use <code>set\_quick()</code> and
        <code>pop\_quick()</code> and data will only be changed in memcache.
@@ -127,7 +127,7 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-May-22 (v1.02)  
+_Updated_: 2010-May-22 (v1.03)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://wiki.github.com/dound/gae-sessions/).
