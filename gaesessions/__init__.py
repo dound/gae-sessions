@@ -225,7 +225,7 @@ class Session(object):
         if self.sid:
             self.__clear_data()
         self.sid = sid
-        self.db_key = db.Key.from_path(SessionModel.kind(), sid)
+        self.db_key = db.Key.from_path(SessionModel.kind(), sid, namespace='')
 
         # set the cookie if requested
         if make_cookie:
@@ -234,7 +234,7 @@ class Session(object):
     def __clear_data(self):
         """Deletes this session from memcache and the datastore."""
         if self.sid:
-            memcache.delete(self.sid) # not really needed; it'll go away on its own
+            memcache.delete(self.sid, namespace='') # not really needed; it'll go away on its own
             try:
                 db.delete(self.db_key)
             except:
@@ -244,7 +244,7 @@ class Session(object):
         """Sets the data associated with this session after retrieving it from
         memcache or the datastore.  Assumes self.sid is set.  Checks for session
         expiration after getting the data."""
-        pdump = memcache.get(self.sid)
+        pdump = memcache.get(self.sid, namespace='')
         if pdump is None:
             # memcache lost it, go to the datastore
             if self.no_datastore:
@@ -292,7 +292,7 @@ class Session(object):
             # latest data will only be in the backend, so expire data cookies we set
             self.cookie_data = ''
 
-        memcache.set(self.sid, pdump)  # may fail if memcache is down
+        memcache.set(self.sid, pdump, namespace='')  # may fail if memcache is down
 
         # persist the session to the datastore
         if dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB or self.no_datastore:
@@ -457,8 +457,8 @@ def delete_expired_sessions():
     Returns True if all expired sessions have been removed.
     """
     now_str = unicode(int(time.time()))
-    q = db.Query(SessionModel, keys_only=True)
-    key = db.Key.from_path('SessionModel', now_str + u'\ufffd')
+    q = db.Query(SessionModel, keys_only=True, namespace='')
+    key = db.Key.from_path('SessionModel', now_str + u'\ufffd', namespace='')
     q.filter('__key__ < ', key)
     results = q.fetch(500)
     db.delete(results)
