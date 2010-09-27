@@ -14,7 +14,6 @@ from gaesessions import get_current_session
 ON_LOCALHOST = ('Development' == os.environ['SERVER_SOFTWARE'][:11])
 if ON_LOCALHOST:
     import logging
-    logging.warn( type(os.environ['SERVER_PORT']))
     if os.environ['SERVER_PORT'] == '80':
         BASE_URL = 'localhost'
     else:
