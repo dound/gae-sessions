@@ -24,6 +24,7 @@ SIG_LEN = 44  # base 64 encoded HMAC-SHA256
 MAX_COOKIE_LEN = 4096
 EXPIRE_COOKIE_FMT = ' %s=; expires=Wed, 01-Jan-1970 00:00:00 GMT; Path=' + COOKIE_PATH
 COOKIE_FMT = ' ' + COOKIE_NAME_PREFIX + '%02d="%s"; expires=%s; Path=' + COOKIE_PATH + '; HttpOnly'
+COOKIE_FMT_SECURE = COOKIE_FMT + '; Secure'
 COOKIE_DATE_FMT = '%a, %d-%b-%Y %H:%M:%S GMT'
 COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + 29 + 150  # 29=date len, 150=safety margin (e.g., in case browser uses 4000 instead of 4096)
 MAX_DATA_PER_COOKIE = MAX_COOKIE_LEN - COOKIE_OVERHEAD
@@ -114,12 +115,17 @@ class Session(object):
             return []  # no cookie headers need to be sent
 
         # build the cookie header(s): includes sig, sid, and cookie_data
+        if self.is_ssl_only():
+            m = MAX_DATA_PER_COOKIE - 8
+            fmt = COOKIE_FMT_SECURE
+        else:
+            m = MAX_DATA_PER_COOKIE
+            fmt = COOKIE_FMT
         sig = Session.__compute_hmac(self.base_key, self.sid, self.cookie_data)
         cv = sig + self.sid + b64encode(self.cookie_data)
-        num_cookies = 1 + (len(cv) - 1) / MAX_DATA_PER_COOKIE
-        m = MAX_DATA_PER_COOKIE
+        num_cookies = 1 + (len(cv) - 1) / m
         ed = datetime.datetime.fromtimestamp(self.get_expiration()).strftime(COOKIE_DATE_FMT)
-        cookies = [COOKIE_FMT % (i, cv[i*m:i*m+m], ed) for i in xrange(num_cookies)]
+        cookies = [fmt % (i, cv[i*m:i*m+m], ed) for i in xrange(num_cookies)]
 
         # expire old cookies which aren't needed anymore
         old_cookies = xrange(num_cookies, len(self.cookie_keys))
@@ -131,6 +137,12 @@ class Session(object):
         """Returns True if this session is active (i.e., it has been assigned a
         session ID and will be or has been persisted)."""
         return self.sid is not None
+
+    def is_ssl_only(self):
+        """Returns True if cookies set by this session will include the "Secure"
+        attribute so that the client will only send them over a secure channel
+        like SSL)."""
+        return self.sid is not None and self.sid[-33]=='S'
 
     def ensure_data_loaded(self):
         """Fetch the session data if it hasn't been retrieved it yet."""
@@ -144,7 +156,7 @@ class Session(object):
         except:
             return 0
 
-    def __make_sid(self, expire_ts=None):
+    def __make_sid(self, expire_ts=None, ssl_only=False):
         """Returns a new session ID."""
         # make a random ID (random.randrange() is 10x faster but less secure?)
         if not expire_ts:
@@ -152,7 +164,11 @@ class Session(object):
             expire_ts = int(time.mktime((expire_dt).timetuple()))
         else:
             expire_ts = int(expire_ts)
-        return str(expire_ts) + '_' + hashlib.md5(os.urandom(16)).hexdigest()
+        if ssl_only:
+            sep = 'S'
+        else:
+            sep = '_'
+        return str(expire_ts) + sep + hashlib.md5(os.urandom(16)).hexdigest()
 
     @staticmethod
     def __encode_data(d):
@@ -188,10 +204,10 @@ class Session(object):
             self.ensure_data_loaded()  # ensure we have the data before we delete it
             if expiration_ts is None:
                 expiration_ts = self.get_expiration()
-            self.__set_sid(self.__make_sid(expiration_ts))
+            self.__set_sid(self.__make_sid(expiration_ts, self.is_ssl_only()))
             self.dirty = True  # ensure the data is written to the new session
 
-    def start(self, expiration_ts=None):
+    def start(self, expiration_ts=None, ssl_only=False):
         """Starts a new session.  expiration specifies when it will expire.  If
         expiration is not specified, then self.lifetime will used to
         determine the expiration date.
@@ -202,10 +218,13 @@ class Session(object):
         ``expiration_ts`` - The UNIX timestamp the session will expire at. If
         omitted, the session will expire after the default ``lifetime`` has past
         (as specified in ``SessionMiddleware``).
+
+        ``ssl_only`` - Whether to specify the "Secure" attribute on the cookie
+        so that the client will ONLY transfer the cookie over a secure channel.
         """
         self.dirty = True
         self.data = {}
-        self.__set_sid(self.__make_sid(expiration_ts), True)
+        self.__set_sid(self.__make_sid(expiration_ts, ssl_only), True)
 
     def terminate(self, clear_data=True):
         """Deletes the session and its data, and expires the user's cookie."""

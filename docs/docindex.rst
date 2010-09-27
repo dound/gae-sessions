@@ -23,7 +23,7 @@ Detailed gaesessions module Documentation
    :members: get_current_session, delete_expired_sessions, SessionMiddleware, DjangoSessionMiddleware
 
 .. autoclass:: gaesessions.Session
-   :members: clear, ensure_data_loaded, get, get_expiration, has_key, is_active, pop, pop_quick, regenerate_id, save, set_quick, start, terminate, __contains__, __delitem__, __getitem__, __iter__, __setitem__
+   :members: clear, ensure_data_loaded, get, get_expiration, has_key, is_active, is_ssl_only, pop, pop_quick, regenerate_id, save, set_quick, start, terminate, __contains__, __delitem__, __getitem__, __iter__, __setitem__
 
 .. autoclass:: gaesessions.SessionModel
 
