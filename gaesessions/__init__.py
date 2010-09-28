@@ -152,7 +152,7 @@ class Session(object):
     def get_expiration(self):
         """Returns the timestamp at which this session will expire."""
         try:
-            return int(self.sid.split('_')[0])
+            return int(self.sid[:-33])
         except:
             return 0
 
