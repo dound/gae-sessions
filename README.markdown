@@ -92,6 +92,14 @@ cronjob](http://github.com/dound/gae-sessions/tree/master/demo/cron.yaml) and
 the [cleanup handler](http://github.com/dound/gae-sessions/tree/master/demo/cleanup_sessions.py)
 it calls in the [demo](http://github.com/dound/gae-sessions/tree/master/demo/).
 
+If you *only* want session information (including the session ID) to be sent
+from the client when the user accesses the server over SSL (i.e., when accessing
+URLs prefixed with "https"), then you will need to manually start the session by
+calling [`start(ssl_only=True)`](http://dound.com/myprojects/gae-sessions/docs/html/docindex.html#gaesessions.Session.start).
+An existing session cannot be converted to or from an SSL-only session.  Use
+this option with care - remember that if this option is used, a user's browser
+will *not* send any session cookies when requesting non-https URLs.
+
 
 Example Usage
 -
@@ -127,7 +135,7 @@ for authentication Here's a few lines of example code too:
 
 
 _Author_: [David Underhill](http://www.dound.com)  
-_Updated_: 2010-Sep-27 (v1.05)  
+_Updated_: 2010-Oct-02 (v1.05)  
 _License_: Apache License Version 2.0
 
 For more information, please visit the [gae-sessions webpage](http://wiki.github.com/dound/gae-sessions/).
