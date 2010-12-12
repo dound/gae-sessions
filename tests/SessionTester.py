@@ -159,6 +159,12 @@ class SessionTester(object):
         if self.ss.sid == ANY_SID:
             self.ss.sid = remote_ss.sid
 
+        # expire the memcache if it is past the expir time (this doesn't handle
+        # expiration mid-usage, but the test cases workaround that)
+        has_expired_now = self._get_expiration() <= int(time.time())
+        if has_expired_now:
+            self.ss.in_mc = False
+
         if expect_failure:
             assert remote_ss.in_db is False, "failure expected: data should not be in the datastore"
             assert remote_ss.in_mc is False, "failure expected: data should not be in memcache"

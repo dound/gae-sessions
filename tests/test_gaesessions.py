@@ -285,7 +285,6 @@ def check_expiration(no_datastore, cookie_only_threshold):
     # generate some sessions
     num_to_start = 20
     sessions_which_expire_shortly = (1, 3, 8, 9, 11)
-    expir_time = int(time.time() + 1)
     sts = []
     for i in xrange(num_to_start):
         stnew = SessionTester(st=st)

@@ -311,7 +311,7 @@ class Session(object):
             # latest data will only be in the backend, so expire data cookies we set
             self.cookie_data = ''
 
-        memcache.set(self.sid, pdump, namespace='')  # may fail if memcache is down
+        memcache.set(self.sid, pdump, namespace='', time=self.get_expiration())  # may fail if memcache is down
 
         # persist the session to the datastore
         if dirty is Session.DIRTY_BUT_DONT_PERSIST_TO_DB or self.no_datastore:
