@@ -92,7 +92,7 @@ class Session(object):
             if sig == actual_sig:
                 self.__set_sid(sid, False)
                 # check for expiration and terminate the session if it has expired
-                if time.time() > self.get_expiration():
+                if self.get_expiration() != 0 and time.time() > self.get_expiration():
                     return self.terminate()
 
                 if pdump:
@@ -124,7 +124,10 @@ class Session(object):
         sig = Session.__compute_hmac(self.base_key, self.sid, self.cookie_data)
         cv = sig + self.sid + b64encode(self.cookie_data)
         num_cookies = 1 + (len(cv) - 1) / m
-        ed = datetime.datetime.fromtimestamp(self.get_expiration()).strftime(COOKIE_DATE_FMT)
+        if self.get_expiration() > 0:
+            ed = datetime.datetime.fromtimestamp(self.get_expiration()).strftime(COOKIE_DATE_FMT)
+        else:
+            ed = 0
         cookies = [fmt % (i, cv[i*m:i*m+m], ed) for i in xrange(num_cookies)]
 
         # expire old cookies which aren't needed anymore
@@ -159,7 +162,7 @@ class Session(object):
     def __make_sid(self, expire_ts=None, ssl_only=False):
         """Returns a new session ID."""
         # make a random ID (random.randrange() is 10x faster but less secure?)
-        if not expire_ts:
+        if expire_ts is None:
             expire_dt = datetime.datetime.now() + self.lifetime
             expire_ts = int(time.mktime((expire_dt).timetuple()))
         else:
@@ -168,7 +171,7 @@ class Session(object):
             sep = 'S'
         else:
             sep = '_'
-        return str(expire_ts) + sep + hashlib.md5(os.urandom(16)).hexdigest()
+        return ('%010d' % expire_ts) + sep + hashlib.md5(os.urandom(16)).hexdigest()
 
     @staticmethod
     def __encode_data(d):
@@ -200,7 +203,7 @@ class Session(object):
         ``expiration_ts`` - The UNIX timestamp the session will expire at. If
         omitted, the session expiration time will not be changed.
         """
-        if self.sid:
+        if self.sid or expiration_ts is not None:
             self.ensure_data_loaded()  # ensure we have the data before we delete it
             if expiration_ts is None:
                 expiration_ts = self.get_expiration()
