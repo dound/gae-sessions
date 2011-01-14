@@ -23,10 +23,10 @@ SID_LEN = 43  # timestamp (10 chars) + underscore + md5 (32 hex chars)
 SIG_LEN = 44  # base 64 encoded HMAC-SHA256
 MAX_COOKIE_LEN = 4096
 EXPIRE_COOKIE_FMT = ' %s=; expires=Wed, 01-Jan-1970 00:00:00 GMT; Path=' + COOKIE_PATH
-COOKIE_FMT = ' ' + COOKIE_NAME_PREFIX + '%02d="%s"; expires=%s; Path=' + COOKIE_PATH + '; HttpOnly'
+COOKIE_FMT = ' ' + COOKIE_NAME_PREFIX + '%02d="%s"; %sPath=' + COOKIE_PATH + '; HttpOnly'
 COOKIE_FMT_SECURE = COOKIE_FMT + '; Secure'
 COOKIE_DATE_FMT = '%a, %d-%b-%Y %H:%M:%S GMT'
-COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + 29 + 150  # 29=date len, 150=safety margin (e.g., in case browser uses 4000 instead of 4096)
+COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + len('expires=Xxx, xx XXX XXXX XX:XX:XX GMT; ') + 150  # 150=safety margin (e.g., in case browser uses 4000 instead of 4096)
 MAX_DATA_PER_COOKIE = MAX_COOKIE_LEN - COOKIE_OVERHEAD
 
 _current_session = None
@@ -125,9 +125,9 @@ class Session(object):
         cv = sig + self.sid + b64encode(self.cookie_data)
         num_cookies = 1 + (len(cv) - 1) / m
         if self.get_expiration() > 0:
-            ed = datetime.datetime.fromtimestamp(self.get_expiration()).strftime(COOKIE_DATE_FMT)
+            ed = "expires=%s; " % datetime.datetime.fromtimestamp(self.get_expiration()).strftime(COOKIE_DATE_FMT)
         else:
-            ed = 0
+            ed = ''
         cookies = [fmt % (i, cv[i*m:i*m+m], ed) for i in xrange(num_cookies)]
 
         # expire old cookies which aren't needed anymore
