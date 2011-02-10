@@ -52,6 +52,7 @@ class Session(object):
 
     def __init__(self, sid=None, lifetime=DEFAULT_LIFETIME, no_datastore=False,
                  cookie_only_threshold=DEFAULT_COOKIE_ONLY_THRESH, cookie_key=None):
+        self._accessed = False
         self.sid = None
         self.cookie_keys = []
         self.cookie_data = None
@@ -147,8 +148,13 @@ class Session(object):
         like SSL)."""
         return self.sid is not None and self.sid[-33]=='S'
 
+    def is_accessed(self):
+        """Returns True if any value of this session has been accessed."""
+        return self._accessed
+
     def ensure_data_loaded(self):
         """Fetch the session data if it hasn't been retrieved it yet."""
+        self._accessed = True
         if self.data is None and self.sid:
             self.__retrieve_data()
 
@@ -471,6 +477,10 @@ class DjangoSessionMiddleware(object):
             for k,v in session_headers:
                 response[k] = v
             self.response_handler = None
+        if request.session.is_accessed():
+            from django.utils.cache import patch_vary_headers
+            logging.info("Varying")
+            patch_vary_headers(response, ('Cookie',))
         return response
 
 def delete_expired_sessions():
