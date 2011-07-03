@@ -117,7 +117,7 @@ for authentication Here's a few lines of example code too:
         c = session.get('counter', 0)
         session['counter'] = c + 1
         session['blah'] = 325
-        del session.blah  # remove 'blah' from the session
+        del session['blah']  # remove 'blah' from the session
         # model instances and other complex objects can be stored too
 
         # If you don't care if a particular change to the session is persisted
