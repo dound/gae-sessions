@@ -38,7 +38,6 @@ def set_current_session(session):
     """Sets the session associated with the current request."""
     global _current_session
     _current_session = session
-    return _current_session
 
 def is_gaesessions_key(k):
     return k.startswith(COOKIE_NAME_PREFIX)
