@@ -34,6 +34,19 @@ def get_current_session():
     """Returns the session associated with the current request."""
     return _current_session
 
+def set_current_session(session=None, **kwds):
+    """Sets the _current_session global so the session is automanaged."""
+    global _current_session
+
+    if not session:
+        _current_session = Session(**kwds)
+    elif isinstance(session, basestring):
+        _current_session = Session(sid=session, **kwds)
+    elif isinstance(session, Session):
+        _current_session = session
+
+    return _current_session
+
 def is_gaesessions_key(k):
     return k.startswith(COOKIE_NAME_PREFIX)
 
