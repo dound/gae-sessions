@@ -202,9 +202,13 @@ class Session(object):
     @staticmethod
     def __decode_data(pdump):
         """Returns a data dictionary after decoding it from "pickled+" form."""
-        eP, eO = pickle.loads(pdump)
-        for k,v in eP.iteritems():
-            eO[k] = db.model_from_protobuf(v)
+        try:
+            eP, eO = pickle.loads(pdump)
+            for k,v in eP.iteritems():
+                eO[k] = db.model_from_protobuf(v)
+        except Exception, e:
+            logging.warn("failed to decode session data: %s" % e)
+            eO = {}
         return eO
 
     def regenerate_id(self, expiration_ts=None):
