@@ -32,6 +32,7 @@ Advantages:
      - The session automatically initializes when you first assign a value.
        Until then, no cookies are set and no writes are done.
      - Sessions expire automatically (based on a lifetime you can specify).
+     - Thread-safe.
 
 
 Limitations:

@@ -7,6 +7,7 @@ import hmac
 import logging
 import pickle
 import os
+import threading
 import time
 
 from google.appengine.api import memcache
@@ -29,15 +30,14 @@ COOKIE_DATE_FMT = '%a, %d-%b-%Y %H:%M:%S GMT'
 COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + len('expires=Xxx, xx XXX XXXX XX:XX:XX GMT; ') + 150  # 150=safety margin (e.g., in case browser uses 4000 instead of 4096)
 MAX_DATA_PER_COOKIE = MAX_COOKIE_LEN - COOKIE_OVERHEAD
 
-_current_session = None
+_tls = threading.local()
 def get_current_session():
     """Returns the session associated with the current request."""
-    return _current_session
+    return _tls.current_session
 
 def set_current_session(session):
     """Sets the session associated with the current request."""
-    global _current_session
-    _current_session = session
+    _tls.current_session = session
 
 def is_gaesessions_key(k):
     return k.startswith(COOKIE_NAME_PREFIX)
@@ -452,13 +452,12 @@ class SessionMiddleware(object):
 
     def __call__(self, environ, start_response):
         # initialize a session for the current user
-        global _current_session
-        _current_session = Session(lifetime=self.lifetime, no_datastore=self.no_datastore, cookie_only_threshold=self.cookie_only_thresh, cookie_key=self.cookie_key)
+        _tls.current_session = Session(lifetime=self.lifetime, no_datastore=self.no_datastore, cookie_only_threshold=self.cookie_only_thresh, cookie_key=self.cookie_key)
 
         # create a hook for us to insert a cookie into the response headers
         def my_start_response(status, headers, exc_info=None):
-            _current_session.save() # store the session if it was changed
-            for ch in _current_session.make_cookie_headers():
+            _tls.current_session.save() # store the session if it was changed
+            for ch in _tls.current_session.make_cookie_headers():
                 headers.append(('Set-Cookie', ch))
             return start_response(status, headers, exc_info)
 
