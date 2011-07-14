@@ -485,7 +485,7 @@ class DjangoSessionMiddleware(object):
             for k,v in session_headers:
                 response[k] = v
             self.response_handler = None
-        if request.session.is_accessed():
+        if hasattr(request, 'session') and request.session.is_accessed():
             from django.utils.cache import patch_vary_headers
             logging.info("Varying")
             patch_vary_headers(response, ('Cookie',))
