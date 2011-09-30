@@ -31,21 +31,27 @@ COOKIE_OVERHEAD = len(COOKIE_FMT % (0, '', '')) + len('expires=Xxx, xx XXX XXXX 
 MAX_DATA_PER_COOKIE = MAX_COOKIE_LEN - COOKIE_OVERHEAD
 
 _tls = threading.local()
+
+
 def get_current_session():
     """Returns the session associated with the current request."""
     return _tls.current_session
+
 
 def set_current_session(session):
     """Sets the session associated with the current request."""
     _tls.current_session = session
 
+
 def is_gaesessions_key(k):
     return k.startswith(COOKIE_NAME_PREFIX)
+
 
 class SessionModel(db.Model):
     """Contains session data.  key_name is the session ID and pdump contains a
     pickled dictionary which maps session variables to their values."""
     pdump = db.BlobProperty()
+
 
 class Session(object):
     """Manages loading, reading/writing key-value pairs, and saving of a session.
@@ -134,7 +140,7 @@ class Session(object):
             ed = "expires=%s; " % datetime.datetime.fromtimestamp(self.get_expiration()).strftime(COOKIE_DATE_FMT)
         else:
             ed = ''
-        cookies = [fmt % (i, cv[i*m:i*m+m], ed) for i in xrange(num_cookies)]
+        cookies = [fmt % (i, cv[i * m:i * m + m], ed) for i in xrange(num_cookies)]
 
         # expire old cookies which aren't needed anymore
         old_cookies = xrange(num_cookies, len(self.cookie_keys))
@@ -151,7 +157,7 @@ class Session(object):
         """Returns True if cookies set by this session will include the "Secure"
         attribute so that the client will only send them over a secure channel
         like SSL)."""
-        return self.sid is not None and self.sid[-33]=='S'
+        return self.sid is not None and self.sid[-33] == 'S'
 
     def is_accessed(self):
         """Returns True if any value of this session has been accessed."""
@@ -189,21 +195,21 @@ class Session(object):
         """Returns a "pickled+" encoding of d.  d values of type db.Model are
         protobuf encoded before pickling to minimize CPU usage & data size."""
         # separate protobufs so we'll know how to decode (they are just strings)
-        eP = {} # for models encoded as protobufs
-        eO = {} # for everything else
-        for k,v in d.iteritems():
+        eP = {}  # for models encoded as protobufs
+        eO = {}  # for everything else
+        for k, v in d.iteritems():
             if isinstance(v, db.Model):
                 eP[k] = db.model_to_protobuf(v)
             else:
                 eO[k] = v
-        return pickle.dumps((eP,eO), 2)
+        return pickle.dumps((eP, eO), 2)
 
     @staticmethod
     def __decode_data(pdump):
         """Returns a data dictionary after decoding it from "pickled+" form."""
         try:
             eP, eO = pickle.loads(pdump)
-            for k,v in eP.iteritems():
+            for k, v in eP.iteritems():
                 eO[k] = db.model_from_protobuf(v)
         except Exception, e:
             logging.warn("failed to decode session data: %s" % e)
@@ -271,11 +277,11 @@ class Session(object):
     def __clear_data(self):
         """Deletes this session from memcache and the datastore."""
         if self.sid:
-            memcache.delete(self.sid, namespace='') # not really needed; it'll go away on its own
+            memcache.delete(self.sid, namespace='')  # not really needed; it'll go away on its own
             try:
                 db.delete(self.db_key)
             except:
-                pass # either it wasn't in the db (maybe cookie/memcache-only) or db is down => cron will expire it
+                pass  # either it wasn't in the db (maybe cookie/memcache-only) or db is down => cron will expire it
 
     def __retrieve_data(self):
         """Sets the data associated with this session after retrieving it from
@@ -286,14 +292,14 @@ class Session(object):
             # memcache lost it, go to the datastore
             if self.no_datastore:
                 logging.info("can't find session data in memcache for sid=%s (using memcache only sessions)" % self.sid)
-                self.terminate(False) # we lost it; just kill the session
+                self.terminate(False)  # we lost it; just kill the session
                 return
             session_model_instance = db.get(self.db_key)
             if session_model_instance:
                 pdump = session_model_instance.pdump
             else:
                 logging.error("can't find session data in the datastore for sid=%s" % self.sid)
-                self.terminate(False) # we lost it; just kill the session
+                self.terminate(False)  # we lost it; just kill the session
                 return
         self.data = self.__decode_data(pdump)
 
@@ -311,9 +317,9 @@ class Session(object):
         automatically saved at the end of the request if any changes were made.
         """
         if not self.sid:
-            return # no session is active
+            return  # no session is active
         if not self.dirty:
-            return # nothing has changed
+            return  # nothing has changed
         dirty = self.dirty
         self.dirty = False  # saving, so it won't be dirty anymore
 
@@ -321,7 +327,7 @@ class Session(object):
         pdump = self.__encode_data(self.data)
 
         # persist via cookies if it is reasonably small
-        if len(pdump)*4/3 <= self.cookie_only_thresh: # 4/3 b/c base64 is ~33% bigger
+        if len(pdump) * 4 / 3 <= self.cookie_only_thresh:  # 4/3 b/c base64 is ~33% bigger
             self.cookie_data = pdump
             if not persist_even_if_using_cookie:
                 return
@@ -337,7 +343,7 @@ class Session(object):
         try:
             SessionModel(key_name=self.sid, pdump=pdump).put()
         except Exception, e:
-            logging.warning("unable to persist session to datastore for sid=%s (%s)" % (self.sid,e))
+            logging.warning("unable to persist session to datastore for sid=%s (%s)" % (self.sid, e))
 
     # Users may interact with the session through a dictionary-like interface.
     def clear(self):
@@ -354,7 +360,7 @@ class Session(object):
     def has_key(self, key):
         """Returns True if key is set."""
         self.ensure_data_loaded()
-        return self.data.has_key(key)
+        return key in self.data
 
     def pop(self, key, default=None):
         """Removes key and returns its value, or default if key is not present."""
@@ -418,6 +424,7 @@ class Session(object):
         else:
             return "uninitialized session"
 
+
 class SessionMiddleware(object):
     """WSGI middleware that adds session support.
 
@@ -456,13 +463,14 @@ class SessionMiddleware(object):
 
         # create a hook for us to insert a cookie into the response headers
         def my_start_response(status, headers, exc_info=None):
-            _tls.current_session.save() # store the session if it was changed
+            _tls.current_session.save()  # store the session if it was changed
             for ch in _tls.current_session.make_cookie_headers():
                 headers.append(('Set-Cookie', ch))
             return start_response(status, headers, exc_info)
 
         # let the app do its thing
         return self.app(environ, my_start_response)
+
 
 class DjangoSessionMiddleware(object):
     """Django middleware that adds session support.  You must specify the
@@ -471,18 +479,18 @@ class DjangoSessionMiddleware(object):
     initialization method with parameters.
     """
     def __init__(self):
-        fake_app = lambda environ, start_response : start_response
+        fake_app = lambda environ, start_response: start_response
         self.wrapped_wsgi_middleware = SessionMiddleware(fake_app, cookie_key='you MUST change this')
         self.response_handler = None
 
     def process_request(self, request):
-        self.response_handler = self.wrapped_wsgi_middleware(None, lambda status, headers, exc_info : headers)
+        self.response_handler = self.wrapped_wsgi_middleware(None, lambda status, headers, exc_info: headers)
         request.session = get_current_session()  # for convenience
 
     def process_response(self, request, response):
         if self.response_handler:
             session_headers = self.response_handler(None, [], None)
-            for k,v in session_headers:
+            for k, v in session_headers:
                 response[k] = v
             self.response_handler = None
         if hasattr(request, 'session') and request.session.is_accessed():
@@ -490,6 +498,7 @@ class DjangoSessionMiddleware(object):
             logging.info("Varying")
             patch_vary_headers(response, ('Cookie',))
         return response
+
 
 def delete_expired_sessions():
     """Deletes expired sessions from the datastore.
@@ -503,4 +512,4 @@ def delete_expired_sessions():
     results = q.fetch(500)
     db.delete(results)
     logging.info('gae-sessions: deleted %d expired sessions from the datastore' % len(results))
-    return len(results)<500
+    return len(results) < 500
