@@ -495,7 +495,6 @@ class DjangoSessionMiddleware(object):
             self.response_handler = None
         if hasattr(request, 'session') and request.session.is_accessed():
             from django.utils.cache import patch_vary_headers
-            logging.info("Varying")
             patch_vary_headers(response, ('Cookie',))
         return response
 
