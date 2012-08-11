@@ -2,7 +2,11 @@ from datetime import datetime
 import os
 import urllib
 
-from django.utils import simplejson
+try:
+    import json
+except ImportError:
+    from django.utils import simplejson as json
+
 from google.appengine.api import urlfetch
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import template
@@ -46,16 +50,16 @@ class RPXTokenHandler(webapp.RequestHandler):
                            payload=urllib.urlencode(args),
                            method=urlfetch.POST,
                            headers={'Content-Type':'application/x-www-form-urlencoded'})
-        json = simplejson.loads(r.content)
+        json_data = json.loads(r.content)
 
         # close any active session the user has since he is trying to login
         session = get_current_session()
         if session.is_active():
             session.terminate()
 
-        if json['stat'] == 'ok':
+        if json_data['stat'] == 'ok':
             # extract some useful fields
-            info = json['profile']
+            info = json_data['profile']
             oid = info['identifier']
             email = info.get('email', '')
             try:
