@@ -54,10 +54,10 @@ function, you can use App Engine's configuration framework to install
 gae-sessions.  Create a file called `appengine_config.py` in your app's root
 directory, and put the following in it:
 
-    from gaesessions import SessionMiddleware
-    def webapp_add_wsgi_middleware(app):
-        app = SessionMiddleware(app, cookie_key="a random and long string")
-        return app
+         from gaesessions import SessionMiddleware
+         def webapp_add_wsgi_middleware(app):
+             app = SessionMiddleware(app, cookie_key="a random and long string")
+             return app
 
 If you want to gae-sessions with Django, add
 <code>'gaesessions.DjangoSessionMiddleware'</code> to your list of
